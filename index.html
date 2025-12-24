@@ -1,0 +1,3114 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoHotKey v2 レイヤーキーマップエディタ - SendEvent版（キー漏れ防止）</title>
+  <style>
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Meiryo', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      padding-top: 280px;
+    }
+    
+    .fixed-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 1000;
+      padding: 20px;
+    }
+    
+    .fixed-header-content {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* レイヤータブ */
+    .layer-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      border-bottom: 2px solid #e0e0e0;
+      padding-bottom: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .layer-tab {
+      padding: 10px 20px;
+      background: #f5f5f5;
+      border: 2px solid #ddd;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .layer-tab.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
+    .layer-tab:hover:not(.active) {
+      background: #e8e8e8;
+    }
+
+    .layer-tab .layer-key-badge {
+      background: #ffd93d;
+      color: #000;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .layer-tab.active .layer-key-badge {
+      background: #fff;
+      color: #667eea;
+    }
+
+    .layer-tab .delete-layer {
+      margin-left: 5px;
+      color: #ff4444;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .layer-tab.active .delete-layer {
+      color: #ffcccc;
+    }
+
+    .add-layer-btn {
+      padding: 10px 20px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: background 0.3s;
+    }
+
+    .add-layer-btn:hover {
+      background: #45a049;
+    }
+
+    /* レイヤー設定パネル */
+    .layer-settings {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+
+    .layer-settings h3 {
+      margin-bottom: 10px;
+      color: #333;
+      font-size: 16px;
+    }
+
+    .setting-row {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .setting-row label {
+      min-width: 120px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .setting-row input,
+    .setting-row select {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 14px;
+      flex: 1;
+    }
+
+    /* 特殊アクションパネル */
+    .special-actions {
+      background: #fff3cd;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+      border: 2px solid #ffc107;
+    }
+
+    .special-actions h4 {
+      margin-bottom: 10px;
+      color: #856404;
+      font-size: 14px;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      padding: 8px 15px;
+      background: #ffc107;
+      color: #000;
+      border: 2px solid #ffb300;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+      background: #ffb300;
+      transform: translateY(-2px);
+    }
+
+    .action-btn.selected {
+      background: #ff9800;
+      border-color: #f57c00;
+    }
+    
+    .header-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .header-section {
+      flex: 1;
+      min-width: 300px;
+    }
+    
+    .header-label {
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    .current-selection {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      min-height: 36px;
+      padding: 8px 12px;
+      background: #f7fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    
+    .current-selection.input-mode {
+      border-color: #60a5fa;
+      background: #eff6ff;
+    }
+    
+    .current-selection.output-mode {
+      border-color: #f472b6;
+      background: #fdf2f8;
+    }
+    
+    .selection-tag {
+      background: #cbd5e0;
+      color: #2d3748;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .selection-tag.input {
+      background: #60a5fa;
+      color: white;
+    }
+    
+    .selection-tag.output {
+      background: #f472b6;
+      color: white;
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      padding: 30px;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+      text-align: center;
+      font-size: 2em;
+    }
+
+    .controls {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .control-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    label {
+      font-weight: 600;
+      color: #555;
+    }
+
+    select, button, input[type="file"] {
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: 2px solid #ddd;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    select {
+      background: white;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      font-weight: 600;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .keyboard-container {
+      background: #f8f9fa;
+      padding: 30px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      overflow-x: auto;
+      overflow-y: visible;
+    }
+
+    .keyboard {
+      position: relative;
+      min-width: 1300px;
+      height: auto;
+      min-height: 400px;
+    }
+
+    .key {
+      position: absolute;
+      background: linear-gradient(180deg, #ffffff 0%, #e9ecef 100%);
+      border: 2px solid #adb5bd;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #333;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 4px;
+    }
+
+    .key:hover {
+      background: linear-gradient(180deg, #e7f3ff 0%, #cfe2ff 100%);
+      border-color: #667eea;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .key.selected {
+      background: linear-gradient(180deg, #ffd700 0%, #ffa500 100%);
+      color: #000;
+      border-color: #ff8c00;
+      box-shadow: 0 4px 12px rgba(255, 215, 0, 0.6);
+      font-weight: 800;
+    }
+
+    .key.mapped {
+      background: linear-gradient(180deg, #48bb78 0%, #38a169 100%);
+      color: white;
+      border-color: #2f855a;
+    }
+    
+    .key.input-selected {
+      background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+      color: white;
+      border-color: #2563eb;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.6);
+      font-weight: 800;
+    }
+    
+    .key.output-selected {
+      background: linear-gradient(180deg, #f472b6 0%, #ec4899 100%);
+      color: white;
+      border-color: #db2777;
+      box-shadow: 0 4px 12px rgba(236, 72, 153, 0.6);
+      font-weight: 800;
+    }
+
+    .key.layer-key {
+      background: linear-gradient(180deg, #ffd93d 0%, #f9c74f 100%);
+      border-color: #ffd93d;
+      color: #000;
+      font-weight: 800;
+    }
+
+    .key-main-label {
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .key-sub-label {
+      font-size: 9px;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    .key.mapped .key-sub-label,
+    .key.input-selected .key-sub-label,
+    .key.output-selected .key-sub-label,
+    .key.layer-key .key-sub-label {
+      color: rgba(255,255,255,0.8);
+    }
+
+    .mappings-section {
+      margin-top: 30px;
+    }
+
+    .mappings-section h2 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 1.5em;
+    }
+    
+    .selection-mode {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #e7f3ff;
+      border-radius: 8px;
+      align-items: center;
+    }
+    
+    .selection-mode label {
+      font-weight: 600;
+      color: #333;
+      margin-right: 5px;
+    }
+    
+    .mode-btn {
+      padding: 10px 20px;
+      border: 2px solid #ddd;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    
+    .mode-btn:hover {
+      border-color: #667eea;
+      background: #f0f4ff;
+    }
+    
+    .mode-btn.active-input {
+      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+      color: white;
+      border-color: #2563eb;
+    }
+    
+    .mode-btn.active-output {
+      background: linear-gradient(135deg, #fda4af 0%, #fb7185 100%);
+      color: white;
+      border-color: #f43f5e;
+    }
+    
+    /* 出力モードボタンのデフォルトスタイル */
+    #outputModeBtn {
+      background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+      color: #831843;
+      border-color: #f9a8d4;
+      font-weight: 700;
+    }
+    
+    #outputModeBtn:hover {
+      background: linear-gradient(135deg, #fbcfe8 0%, #f9a8d4 100%);
+      border-color: #f472b6;
+    }
+
+    .mapping-form {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .form-group {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .modifier-checkboxes {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .modifier-checkboxes label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      font-weight: normal;
+    }
+
+    .modifier-checkboxes input[type="checkbox"] {
+      cursor: pointer;
+    }
+
+    .mapping-list {
+      list-style: none;
+    }
+
+    .mapping-item {
+      background: white;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .mapping-info {
+      flex: 1;
+    }
+
+    .mapping-keys {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .mapping-arrow {
+      color: #667eea;
+      margin: 0 10px;
+    }
+
+    .delete-btn {
+      background: #ff6b6b;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .delete-btn:hover {
+      background: #ee5a6f;
+      transform: scale(1.05);
+    }
+
+    #ahkOutput {
+      background: #2a2a2a;
+      color: #0f0;
+      padding: 20px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      max-height: 500px;
+      overflow-y: auto;
+      margin-top: 20px;
+      border: 2px solid #444;
+    }
+
+    .output-controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+  
+
+    /* 出力選択モーダル */
+    .output-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .output-modal.active {
+      display: flex;
+    }
+
+    .output-modal-content {
+      background: white;
+      border-radius: 15px;
+      max-width: 900px;
+      width: 95%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .output-modal-header {
+      padding: 20px 25px;
+      border-bottom: 2px solid #e0e0e0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 15px 15px 0 0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .output-modal-header h2 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .output-modal-close {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      font-size: 28px;
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      line-height: 1;
+    }
+
+    .output-modal-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: rotate(90deg);
+    }
+
+    .output-modal-body {
+      padding: 25px;
+    }
+
+    .modal-section {
+      margin-bottom: 25px;
+    }
+
+    .modal-section h3 {
+      margin: 0 0 15px 0;
+      font-size: 16px;
+      color: #333;
+    }
+
+    .modal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
+    }
+
+    .modal-key-item {
+      padding: 12px 8px;
+      background: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 50px;
+    }
+
+    .modal-key-item:hover {
+      background: linear-gradient(180deg, #e7f3ff 0%, #cfe2ff 100%);
+      border-color: #667eea;
+      transform: translateY(-2px);
+    }
+
+    .modal-key-item.selected {
+      background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+      border-color: #667eea;
+      color: white;
+    }
+
+    .output-modal-footer {
+      padding: 15px 25px;
+      border-top: 2px solid #e0e0e0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f9f9f9;
+      border-radius: 0 0 15px 15px;
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+    }
+
+    .output-preview {
+      flex: 1;
+      padding: 12px;
+      background: white;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      margin-right: 15px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .output-preview.empty {
+      color: #999;
+      font-weight: normal;
+    }
+
+    .modal-btn {
+      padding: 10px 25px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .modal-btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      margin-left: 10px;
+    }
+
+    .modal-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .modal-btn-secondary {
+      background: #f5f5f5;
+      color: #666;
+    }
+
+    .modal-btn-secondary:hover {
+      background: #e8e8e8;
+    }
+  
+    /* カスタム文字列管理 */
+    .custom-string-item {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+      background: #f9f9f9;
+      padding: 10px;
+      border-radius: 6px;
+    }
+
+    .custom-string-item input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .custom-string-item input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .custom-string-item .delete-string {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: background 0.2s;
+      min-width: 60px;
+    }
+
+    .custom-string-item .delete-string:hover {
+      background: #dc2626;
+    }
+
+    .modal-key-item.language-switch {
+      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+      border-color: #3b82f6;
+    }
+
+    .modal-key-item.language-switch.selected {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      border-color: #1d4ed8;
+    }
+
+    .modal-key-item.custom-string {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-color: #f59e0b;
+      font-size: 11px;
+      word-break: break-all;
+    }
+
+    .modal-key-item.custom-string.selected {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: white;
+      border-color: #b45309;
+    }
+</style>
+</head>
+<body>
+  <div class="fixed-header">
+    <div class="fixed-header-content">
+      <!-- レイヤータブ -->
+      <div class="layer-tabs" id="layerTabs">
+        <!-- JavaScriptで動的生成 -->
+      </div>
+
+      <!-- レイヤー設定 -->
+      <div class="layer-settings" id="layerSettings">
+        <h3>レイヤー設定</h3>
+        <div class="setting-row">
+          <label>キーボード配列:</label>
+          <select id="keyboardLayoutSelect" onchange="changeKeyboardLayout()">
+            <option value="us">US配列</option>
+            <option value="jis">日本語配列 (JIS)</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label>レイヤー名:</label>
+          <input type="text" id="layerName" placeholder="レイヤー名を入力">
+        </div>
+        <div class="setting-row" id="layerKeyRow" style="display: none;">
+          <label>レイヤーキー:</label>
+          <select id="layerKeySelect">
+            <option value="">選択してください</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 選択モード -->
+      <div class="selection-mode">
+        <label>選択モード:</label>
+        <button id="inputModeBtn" class="mode-btn active-input" onclick="setSelectionMode('input')">入力キー選択</button>
+        <button id="outputModeBtn" class="mode-btn" onclick="openOutputModal()">出力キー選択 (モーダル)</button>
+      </div>
+
+      <!-- 現在の選択 -->
+      <div class="header-row">
+        <div class="header-section">
+          <div class="header-label">入力キー</div>
+          <div id="inputKeysDisplay" class="current-selection input-mode">
+            <span style="color: #999;">キーを選択してください</span>
+          </div>
+        </div>
+        <div class="header-section">
+          <div class="header-label">出力キー</div>
+          <div id="outputKeysDisplay" class="current-selection output-mode">
+            <span style="color: #999;">キーを選択してください</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>🎹 AutoHotkey v2 レイヤーキーマップエディタ <span style="color: #4CAF50; font-size: 0.6em;">【SendEvent版】</span></h1>
+    <p style="text-align: center; color: #666; margin-top: 10px; font-size: 0.9em;">
+      すべてのキー出力にSendEvent()を使用 - キー漏れを完全防止
+    </p>
+
+    <!-- キーボードレイアウト -->
+    <div class="keyboard-container">
+      <div class="keyboard" id="keyboard">
+        <!-- JavaScriptで動的生成 -->
+      </div>
+    </div>
+
+    <!-- マッピング制御 -->
+    <div class="controls">
+      <div style="flex: 1; padding: 10px 0; color: #666; font-size: 14px;">
+        💡 <strong>使い方:</strong> 入力キーを選択 → 「出力キー選択」でモーダルを開いて出力を選択 → モーダル内の「マッピング追加」ボタンで登録
+      </div>
+      <button onclick="clearSelection()">🔄 選択クリア</button>
+      <button onclick="clearAllMappings()" style="background: #ff6b6b;">🗑️ 全マッピングクリア</button>
+    </div>
+
+    <!-- マッピングリスト -->
+    <div class="mappings-section">
+      <h2>マッピング一覧</h2>
+      <ul id="mappingList" class="mapping-list">
+        <!-- JavaScriptで動的生成 -->
+      </ul>
+    </div>
+
+    <!-- AHK出力 -->
+    <div class="mappings-section">
+      <h2>AutoHotkey v2 スクリプト</h2>
+      <pre id="ahkOutput">; レイヤーキーマップエディタで生成されたスクリプト
+; マッピングを追加してください</pre>
+      <div class="output-controls">
+        <button onclick="downloadAHK()">💾 AHKv2ダウンロード</button>
+        <button onclick="saveJSON()">📁 設定保存 (.json)</button>
+        <label style="background: #4CAF50; cursor: pointer; padding: 10px 20px; border-radius: 6px; color: white; font-weight: 600;">
+          📂 設定読込 (.json)
+          <input type="file" accept=".json" onchange="loadJSON(event)" style="display: none;">
+        </label>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 出力選択モーダル -->
+  <div class="output-modal" id="outputModal">
+    <div class="output-modal-content">
+      <div class="output-modal-header">
+        <h2>🎯 出力キー選択</h2>
+        <button class="output-modal-close" onclick="closeOutputModal()">×</button>
+      </div>
+      
+      <div class="output-modal-body">
+        <!-- 修飾キー -->
+        <div class="modal-section">
+          <h3>🎛️ 修飾キー</h3>
+          <div class="modal-grid" style="grid-template-columns: repeat(4, 1fr);" id="modifierModalGrid"></div>
+        </div>
+
+        <!-- キーボード（行ごとに整理） -->
+        <div class="modal-section">
+          <h3>⌨️ キーボード</h3>
+          
+          <!-- ファンクションキー -->
+          <div style="margin-bottom: 15px;">
+            <h4 style="font-size: 13px; color: #666; margin-bottom: 8px;">ファンクションキー</h4>
+            <div class="modal-grid" id="functionKeysGrid"></div>
+          </div>
+          
+          <!-- 数字・記号 -->
+          <div style="margin-bottom: 15px;">
+            <h4 style="font-size: 13px; color: #666; margin-bottom: 8px;">数字・記号</h4>
+            <div class="modal-grid" id="numberKeysGrid"></div>
+          </div>
+          
+          <!-- アルファベット -->
+          <div style="margin-bottom: 15px;">
+            <h4 style="font-size: 13px; color: #666; margin-bottom: 8px;">アルファベット</h4>
+            <div class="modal-grid" id="letterKeysGrid"></div>
+          </div>
+          
+          <!-- ナビゲーション -->
+          <div style="margin-bottom: 15px;">
+            <h4 style="font-size: 13px; color: #666; margin-bottom: 8px;">ナビゲーション・編集</h4>
+            <div class="modal-grid" id="navKeysGrid"></div>
+          </div>
+          
+          <!-- テンキー -->
+          <div style="margin-bottom: 15px;">
+            <h4 style="font-size: 13px; color: #666; margin-bottom: 8px;">テンキー</h4>
+            <div class="modal-grid" id="numpadKeysGrid"></div>
+          </div>
+        </div>
+
+        <!-- マウス -->
+        <div class="modal-section">
+          <h3>🖱️ マウス</h3>
+          <div class="modal-grid" id="mouseModalGrid"></div>
+        </div>
+
+        <!-- メディア・ブラウザ -->
+        <div class="modal-section">
+          <h3>🎵 メディア・ブラウザ</h3>
+          <div class="modal-grid" id="mediaModalGrid"></div>
+        </div>
+
+        <!-- 特殊 -->
+        <div class="modal-section">
+          <h3>⚡ 特殊</h3>
+          <div class="modal-grid" id="specialModalGrid"></div>
+        </div>
+
+        <!-- 言語切り替え -->
+        <div class="modal-section">
+          <h3>🌐 言語切り替え</h3>
+          <div class="modal-grid" id="languageSwitchGrid"></div>
+        </div>
+
+        <!-- カスタム文字列 -->
+        <div class="modal-section">
+          <h3>📝 カスタム文字列</h3>
+          <div style="margin-bottom: 15px;">
+            <button class="modal-btn modal-btn-primary" style="font-size: 13px; padding: 8px 16px;" onclick="addCustomString()">+ 新しい文字列を追加</button>
+          </div>
+          <div id="customStringsList" style="margin-bottom: 15px;"></div>
+          <div class="modal-grid" id="customStringsGrid"></div>
+        </div>
+      </div>
+
+      <div class="output-modal-footer">
+        <div id="outputPreview" class="output-preview empty">
+          選択されていません
+        </div>
+        <div>
+          <button class="modal-btn modal-btn-secondary" onclick="clearModalSelection()">🔄 クリア</button>
+          <button class="modal-btn modal-btn-primary" onclick="confirmAndAddMapping()">✅ マッピング追加</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== 言語切り替えとカスタム文字列の機能 =====
+    
+    // 言語切り替えアクション定義
+    const languageSwitchActions = [
+      { code: 'IME_Japanese', label: '日本語に切り替え', ahk: 'SendEvent("{vkF2}")' },
+      { code: 'IME_English', label: '英語に切り替え', ahk: 'SendEvent("{vkF3}")' }
+    ];
+
+    // カスタム文字列のデータ
+    let customStrings = [];
+    let nextCustomStringId = 1;
+
+    // カスタム文字列を追加
+    function addCustomString() {
+      const id = nextCustomStringId++;
+      const customString = {
+        id: id,
+        label: '',
+        value: '',
+        code: `Custom_String_${id}`
+      };
+      customStrings.push(customString);
+      renderCustomStrings();
+      renderCustomStringsGrid();
+    }
+
+    // カスタム文字列を削除
+    function deleteCustomString(id) {
+      customStrings = customStrings.filter(s => s.id !== id);
+      // 使用中のマッピングから削除
+      const code = `Custom_String_${id}`;
+      outputKeys = outputKeys.filter(k => k !== code);
+      renderCustomStrings();
+      renderCustomStringsGrid();
+    }
+
+    // カスタム文字列のラベルを更新
+    function updateCustomStringLabel(id, label) {
+      const str = customStrings.find(s => s.id === id);
+      if (str) {
+        str.label = label;
+        renderCustomStringsGrid();
+      }
+    }
+
+    // カスタム文字列の値を更新
+    function updateCustomStringValue(id, value) {
+      const str = customStrings.find(s => s.id === id);
+      if (str) {
+        str.value = value;
+      }
+    }
+
+    // カスタム文字列リストをレンダリング
+    function renderCustomStrings() {
+      const container = document.getElementById('customStringsList');
+      container.innerHTML = '';
+      
+      if (customStrings.length === 0) {
+        container.innerHTML = '<p style="color: #999; font-size: 13px; text-align: center;">文字列が登録されていません</p>';
+        return;
+      }
+      
+      customStrings.forEach(str => {
+        const item = document.createElement('div');
+        item.className = 'custom-string-item';
+        
+        const labelInput = document.createElement('input');
+        labelInput.type = 'text';
+        labelInput.placeholder = 'ラベル (例: パスワード1)';
+        labelInput.value = str.label;
+        labelInput.style.maxWidth = '200px';
+        labelInput.oninput = (e) => updateCustomStringLabel(str.id, e.target.value);
+        
+        const valueInput = document.createElement('input');
+        valueInput.type = 'text';
+        valueInput.placeholder = '送信する文字列';
+        valueInput.value = str.value;
+        valueInput.oninput = (e) => updateCustomStringValue(str.id, e.target.value);
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-string';
+        deleteBtn.textContent = '削除';
+        deleteBtn.onclick = () => {
+          if (confirm('この文字列を削除しますか？')) {
+            deleteCustomString(str.id);
+          }
+        };
+        
+        item.appendChild(labelInput);
+        item.appendChild(valueInput);
+        item.appendChild(deleteBtn);
+        container.appendChild(item);
+      });
+    }
+
+    // カスタム文字列グリッドをレンダリング
+    function renderCustomStringsGrid() {
+      const grid = document.getElementById('customStringsGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      
+      if (customStrings.length === 0) {
+        return;
+      }
+      
+      customStrings.forEach(str => {
+        const key = document.createElement('div');
+        key.className = 'modal-key-item custom-string';
+        key.textContent = str.label || `文字列 ${str.id}`;
+        key.dataset.code = str.code;
+        
+        if (tempOutputKeys.includes(str.code)) {
+          key.classList.add('selected');
+        }
+        
+        key.onclick = () => {
+          toggleModalKey(str.code);
+        };
+        
+        grid.appendChild(key);
+      });
+    }
+
+    // 言語切り替えグリッドをレンダリング
+    function renderLanguageSwitchGrid() {
+      const grid = document.getElementById('languageSwitchGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      
+      languageSwitchActions.forEach(action => {
+        const key = document.createElement('div');
+        key.className = 'modal-key-item language-switch';
+        key.textContent = action.label;
+        key.dataset.code = action.code;
+        
+        if (tempOutputKeys.includes(action.code)) {
+          key.classList.add('selected');
+        }
+        
+        key.onclick = () => {
+          toggleModalKey(action.code);
+        };
+        
+        grid.appendChild(key);
+      });
+    }
+
+    // ===== 既存関数の拡張 =====
+
+
+    // バージョン管理
+    const EDITOR_VERSION = '1.1.0'; // バージョン番号
+    
+    // グローバル変数
+    let layers = [
+      {
+        id: 0,
+        name: "Base Layer",
+        isBase: true,
+        layerKey: null,
+        mappings: []
+      }
+    ];
+    let currentLayerId = 0;
+    let nextLayerId = 1;
+    let currentLayout = 'us'; // 'us' or 'jis'
+    
+    // 選択状態
+    let selectionMode = 'input';  // 'input' or 'output'
+    let inputKeys = [];
+    let inputModifiers = [];
+    let outputKeys = [];
+    let outputModifiers = [];
+
+    // フルキーボードレイアウト定義（テンキー付き）
+    const keyboardLayouts = {
+      us: [
+        // Row 1: Esc + Function keys + Print Screen, Scroll Lock, Pause
+        [
+          { code: 'Escape', label: 'Esc', x: 0, y: 0, w: 50, h: 50 },
+          { code: 'F1', label: 'F1', x: 90, y: 0, w: 50, h: 50 },
+          { code: 'F2', label: 'F2', x: 145, y: 0, w: 50, h: 50 },
+          { code: 'F3', label: 'F3', x: 200, y: 0, w: 50, h: 50 },
+          { code: 'F4', label: 'F4', x: 255, y: 0, w: 50, h: 50 },
+          { code: 'F5', label: 'F5', x: 330, y: 0, w: 50, h: 50 },
+          { code: 'F6', label: 'F6', x: 385, y: 0, w: 50, h: 50 },
+          { code: 'F7', label: 'F7', x: 440, y: 0, w: 50, h: 50 },
+          { code: 'F8', label: 'F8', x: 495, y: 0, w: 50, h: 50 },
+          { code: 'F9', label: 'F9', x: 570, y: 0, w: 50, h: 50 },
+          { code: 'F10', label: 'F10', x: 625, y: 0, w: 50, h: 50 },
+          { code: 'F11', label: 'F11', x: 680, y: 0, w: 50, h: 50 },
+          { code: 'F12', label: 'F12', x: 735, y: 0, w: 50, h: 50 },
+          { code: 'PrintScreen', label: 'PrtSc', x: 810, y: 0, w: 50, h: 50 },
+          { code: 'ScrollLock', label: 'ScrLk', x: 865, y: 0, w: 50, h: 50 },
+          { code: 'Pause', label: 'Pause', x: 920, y: 0, w: 50, h: 50 },
+        ],
+        // Row 2: Number row
+        [
+          { code: 'Backquote', label: '`~', x: 0, y: 70, w: 50, h: 50 },
+          { code: 'Digit1', label: '1!', x: 55, y: 70, w: 50, h: 50 },
+          { code: 'Digit2', label: '2@', x: 110, y: 70, w: 50, h: 50 },
+          { code: 'Digit3', label: '3#', x: 165, y: 70, w: 50, h: 50 },
+          { code: 'Digit4', label: '4$', x: 220, y: 70, w: 50, h: 50 },
+          { code: 'Digit5', label: '5%', x: 275, y: 70, w: 50, h: 50 },
+          { code: 'Digit6', label: '6^', x: 330, y: 70, w: 50, h: 50 },
+          { code: 'Digit7', label: '7&', x: 385, y: 70, w: 50, h: 50 },
+          { code: 'Digit8', label: '8*', x: 440, y: 70, w: 50, h: 50 },
+          { code: 'Digit9', label: '9(', x: 495, y: 70, w: 50, h: 50 },
+          { code: 'Digit0', label: '0)', x: 550, y: 70, w: 50, h: 50 },
+          { code: 'Minus', label: '-_', x: 605, y: 70, w: 50, h: 50 },
+          { code: 'Equal', label: '=+', x: 660, y: 70, w: 50, h: 50 },
+          { code: 'Backspace', label: 'Back', x: 715, y: 70, w: 70, h: 50 },
+          { code: 'Insert', label: 'Ins', x: 810, y: 70, w: 50, h: 50 },
+          { code: 'Home', label: 'Home', x: 865, y: 70, w: 50, h: 50 },
+          { code: 'PageUp', label: 'PgUp', x: 920, y: 70, w: 50, h: 50 },
+          { code: 'NumLock', label: 'NumLk', x: 995, y: 70, w: 50, h: 50 },
+          { code: 'NumpadDivide', label: '/', x: 1050, y: 70, w: 50, h: 50 },
+          { code: 'NumpadMultiply', label: '*', x: 1105, y: 70, w: 50, h: 50 },
+          { code: 'NumpadSubtract', label: '-', x: 1160, y: 70, w: 50, h: 50 },
+        ],
+        // Row 3: Tab row
+        [
+          { code: 'Tab', label: 'Tab', x: 0, y: 125, w: 70, h: 50 },
+          { code: 'KeyQ', label: 'Q', x: 75, y: 125, w: 50, h: 50 },
+          { code: 'KeyW', label: 'W', x: 130, y: 125, w: 50, h: 50 },
+          { code: 'KeyE', label: 'E', x: 185, y: 125, w: 50, h: 50 },
+          { code: 'KeyR', label: 'R', x: 240, y: 125, w: 50, h: 50 },
+          { code: 'KeyT', label: 'T', x: 295, y: 125, w: 50, h: 50 },
+          { code: 'KeyY', label: 'Y', x: 350, y: 125, w: 50, h: 50 },
+          { code: 'KeyU', label: 'U', x: 405, y: 125, w: 50, h: 50 },
+          { code: 'KeyI', label: 'I', x: 460, y: 125, w: 50, h: 50 },
+          { code: 'KeyO', label: 'O', x: 515, y: 125, w: 50, h: 50 },
+          { code: 'KeyP', label: 'P', x: 570, y: 125, w: 50, h: 50 },
+          { code: 'BracketLeft', label: '[{', x: 625, y: 125, w: 50, h: 50 },
+          { code: 'BracketRight', label: ']}', x: 680, y: 125, w: 50, h: 50 },
+          { code: 'Backslash', label: '\\|', x: 735, y: 125, w: 50, h: 50 },
+          { code: 'Delete', label: 'Del', x: 810, y: 125, w: 50, h: 50 },
+          { code: 'End', label: 'End', x: 865, y: 125, w: 50, h: 50 },
+          { code: 'PageDown', label: 'PgDn', x: 920, y: 125, w: 50, h: 50 },
+          { code: 'Numpad7', label: '7', x: 995, y: 125, w: 50, h: 50 },
+          { code: 'Numpad8', label: '8', x: 1050, y: 125, w: 50, h: 50 },
+          { code: 'Numpad9', label: '9', x: 1105, y: 125, w: 50, h: 50 },
+          { code: 'NumpadAdd', label: '+', x: 1160, y: 125, w: 50, h: 105 },
+        ],
+        // Row 4: Caps Lock row
+        [
+          { code: 'CapsLock', label: 'Caps', x: 0, y: 180, w: 85, h: 50 },
+          { code: 'KeyA', label: 'A', x: 90, y: 180, w: 50, h: 50 },
+          { code: 'KeyS', label: 'S', x: 145, y: 180, w: 50, h: 50 },
+          { code: 'KeyD', label: 'D', x: 200, y: 180, w: 50, h: 50 },
+          { code: 'KeyF', label: 'F', x: 255, y: 180, w: 50, h: 50 },
+          { code: 'KeyG', label: 'G', x: 310, y: 180, w: 50, h: 50 },
+          { code: 'KeyH', label: 'H', x: 365, y: 180, w: 50, h: 50 },
+          { code: 'KeyJ', label: 'J', x: 420, y: 180, w: 50, h: 50 },
+          { code: 'KeyK', label: 'K', x: 475, y: 180, w: 50, h: 50 },
+          { code: 'KeyL', label: 'L', x: 530, y: 180, w: 50, h: 50 },
+          { code: 'Semicolon', label: ';:', x: 585, y: 180, w: 50, h: 50 },
+          { code: 'Quote', label: '\'"', x: 640, y: 180, w: 50, h: 50 },
+          { code: 'Enter', label: 'Enter', x: 695, y: 180, w: 90, h: 50 },
+          { code: 'Numpad4', label: '4', x: 995, y: 180, w: 50, h: 50 },
+          { code: 'Numpad5', label: '5', x: 1050, y: 180, w: 50, h: 50 },
+          { code: 'Numpad6', label: '6', x: 1105, y: 180, w: 50, h: 50 },
+        ],
+        // Row 5: Shift row
+        [
+          { code: 'ShiftLeft', label: 'Shift', x: 0, y: 235, w: 110, h: 50 },
+          { code: 'KeyZ', label: 'Z', x: 115, y: 235, w: 50, h: 50 },
+          { code: 'KeyX', label: 'X', x: 170, y: 235, w: 50, h: 50 },
+          { code: 'KeyC', label: 'C', x: 225, y: 235, w: 50, h: 50 },
+          { code: 'KeyV', label: 'V', x: 280, y: 235, w: 50, h: 50 },
+          { code: 'KeyB', label: 'B', x: 335, y: 235, w: 50, h: 50 },
+          { code: 'KeyN', label: 'N', x: 390, y: 235, w: 50, h: 50 },
+          { code: 'KeyM', label: 'M', x: 445, y: 235, w: 50, h: 50 },
+          { code: 'Comma', label: ',<', x: 500, y: 235, w: 50, h: 50 },
+          { code: 'Period', label: '.>', x: 555, y: 235, w: 50, h: 50 },
+          { code: 'Slash', label: '/?', x: 610, y: 235, w: 50, h: 50 },
+          { code: 'ShiftRight', label: 'Shift', x: 665, y: 235, w: 120, h: 50 },
+          { code: 'ArrowUp', label: '↑', x: 865, y: 235, w: 50, h: 50 },
+          { code: 'Numpad1', label: '1', x: 995, y: 235, w: 50, h: 50 },
+          { code: 'Numpad2', label: '2', x: 1050, y: 235, w: 50, h: 50 },
+          { code: 'Numpad3', label: '3', x: 1105, y: 235, w: 50, h: 50 },
+          { code: 'NumpadEnter', label: 'Enter', x: 1160, y: 235, w: 50, h: 105 },
+        ],
+        // Row 6: Control row
+        [
+          { code: 'ControlLeft', label: 'Ctrl', x: 0, y: 290, w: 65, h: 50 },
+          { code: 'MetaLeft', label: 'Win', x: 70, y: 290, w: 65, h: 50 },
+          { code: 'AltLeft', label: 'Alt', x: 140, y: 290, w: 65, h: 50 },
+          { code: 'Space', label: 'Space', x: 210, y: 290, w: 270, h: 50 },
+          { code: 'AltRight', label: 'Alt', x: 485, y: 290, w: 65, h: 50 },
+          { code: 'MetaRight', label: 'Win', x: 555, y: 290, w: 65, h: 50 },
+          { code: 'ContextMenu', label: 'Menu', x: 625, y: 290, w: 65, h: 50 },
+          { code: 'ControlRight', label: 'Ctrl', x: 695, y: 290, w: 90, h: 50 },
+          { code: 'ArrowLeft', label: '←', x: 810, y: 290, w: 50, h: 50 },
+          { code: 'ArrowDown', label: '↓', x: 865, y: 290, w: 50, h: 50 },
+          { code: 'ArrowRight', label: '→', x: 920, y: 290, w: 50, h: 50 },
+          { code: 'Numpad0', label: '0', x: 995, y: 290, w: 105, h: 50 },
+          { code: 'NumpadDecimal', label: '.', x: 1105, y: 290, w: 50, h: 50 },
+        ],
+      ],
+      jis: [
+        // Row 1: Esc + Function keys + Print Screen, Scroll Lock, Pause
+        [
+          { code: 'Escape', label: 'Esc', x: 0, y: 0, w: 50, h: 50 },
+          { code: 'F1', label: 'F1', x: 90, y: 0, w: 50, h: 50 },
+          { code: 'F2', label: 'F2', x: 145, y: 0, w: 50, h: 50 },
+          { code: 'F3', label: 'F3', x: 200, y: 0, w: 50, h: 50 },
+          { code: 'F4', label: 'F4', x: 255, y: 0, w: 50, h: 50 },
+          { code: 'F5', label: 'F5', x: 330, y: 0, w: 50, h: 50 },
+          { code: 'F6', label: 'F6', x: 385, y: 0, w: 50, h: 50 },
+          { code: 'F7', label: 'F7', x: 440, y: 0, w: 50, h: 50 },
+          { code: 'F8', label: 'F8', x: 495, y: 0, w: 50, h: 50 },
+          { code: 'F9', label: 'F9', x: 570, y: 0, w: 50, h: 50 },
+          { code: 'F10', label: 'F10', x: 625, y: 0, w: 50, h: 50 },
+          { code: 'F11', label: 'F11', x: 680, y: 0, w: 50, h: 50 },
+          { code: 'F12', label: 'F12', x: 735, y: 0, w: 50, h: 50 },
+          { code: 'PrintScreen', label: 'PrtSc', x: 810, y: 0, w: 50, h: 50 },
+          { code: 'ScrollLock', label: 'ScrLk', x: 865, y: 0, w: 50, h: 50 },
+          { code: 'Pause', label: 'Pause', x: 920, y: 0, w: 50, h: 50 },
+        ],
+        // Row 2: Number row (JIS)
+        [
+          { code: 'Zenkaku', label: '半/全', x: 0, y: 70, w: 50, h: 50 },
+          { code: 'Digit1', label: '1!', x: 55, y: 70, w: 50, h: 50 },
+          { code: 'Digit2', label: '2"', x: 110, y: 70, w: 50, h: 50 },
+          { code: 'Digit3', label: '3#', x: 165, y: 70, w: 50, h: 50 },
+          { code: 'Digit4', label: '4$', x: 220, y: 70, w: 50, h: 50 },
+          { code: 'Digit5', label: '5%', x: 275, y: 70, w: 50, h: 50 },
+          { code: 'Digit6', label: '6&', x: 330, y: 70, w: 50, h: 50 },
+          { code: 'Digit7', label: '7\'', x: 385, y: 70, w: 50, h: 50 },
+          { code: 'Digit8', label: '8(', x: 440, y: 70, w: 50, h: 50 },
+          { code: 'Digit9', label: '9)', x: 495, y: 70, w: 50, h: 50 },
+          { code: 'Digit0', label: '0', x: 550, y: 70, w: 50, h: 50 },
+          { code: 'Minus', label: '-=', x: 605, y: 70, w: 50, h: 50 },
+          { code: 'Equal', label: '^~', x: 660, y: 70, w: 50, h: 50 },
+          { code: 'IntlYen', label: '¥|', x: 715, y: 70, w: 50, h: 50 },
+          { code: 'Backspace', label: 'BS', x: 770, y: 70, w: 65, h: 50 },
+          { code: 'Insert', label: 'Ins', x: 860, y: 70, w: 50, h: 50 },
+          { code: 'Home', label: 'Home', x: 915, y: 70, w: 50, h: 50 },
+          { code: 'PageUp', label: 'PgUp', x: 970, y: 70, w: 50, h: 50 },
+          { code: 'NumLock', label: 'NumLk', x: 1045, y: 70, w: 50, h: 50 },
+          { code: 'NumpadDivide', label: '/', x: 1100, y: 70, w: 50, h: 50 },
+          { code: 'NumpadMultiply', label: '*', x: 1155, y: 70, w: 50, h: 50 },
+          { code: 'NumpadSubtract', label: '-', x: 1210, y: 70, w: 50, h: 50 },
+        ],
+        // Row 3: Tab row (JIS)
+        [
+          { code: 'Tab', label: 'Tab', x: 0, y: 125, w: 70, h: 50 },
+          { code: 'KeyQ', label: 'Q', x: 75, y: 125, w: 50, h: 50 },
+          { code: 'KeyW', label: 'W', x: 130, y: 125, w: 50, h: 50 },
+          { code: 'KeyE', label: 'E', x: 185, y: 125, w: 50, h: 50 },
+          { code: 'KeyR', label: 'R', x: 240, y: 125, w: 50, h: 50 },
+          { code: 'KeyT', label: 'T', x: 295, y: 125, w: 50, h: 50 },
+          { code: 'KeyY', label: 'Y', x: 350, y: 125, w: 50, h: 50 },
+          { code: 'KeyU', label: 'U', x: 405, y: 125, w: 50, h: 50 },
+          { code: 'KeyI', label: 'I', x: 460, y: 125, w: 50, h: 50 },
+          { code: 'KeyO', label: 'O', x: 515, y: 125, w: 50, h: 50 },
+          { code: 'KeyP', label: 'P', x: 570, y: 125, w: 50, h: 50 },
+          { code: 'BracketLeft', label: '@`', x: 625, y: 125, w: 50, h: 50 },
+          { code: 'BracketRight', label: '[{', x: 680, y: 125, w: 50, h: 50 },
+          { code: 'Delete', label: 'Del', x: 860, y: 125, w: 50, h: 50 },
+          { code: 'End', label: 'End', x: 915, y: 125, w: 50, h: 50 },
+          { code: 'PageDown', label: 'PgDn', x: 970, y: 125, w: 50, h: 50 },
+          { code: 'Numpad7', label: '7', x: 1045, y: 125, w: 50, h: 50 },
+          { code: 'Numpad8', label: '8', x: 1100, y: 125, w: 50, h: 50 },
+          { code: 'Numpad9', label: '9', x: 1155, y: 125, w: 50, h: 50 },
+          { code: 'NumpadAdd', label: '+', x: 1210, y: 125, w: 50, h: 105 },
+        ],
+        // Row 4: Caps Lock row (JIS)
+        [
+          { code: 'CapsLock', label: '英数', x: 0, y: 180, w: 85, h: 50 },
+          { code: 'KeyA', label: 'A', x: 90, y: 180, w: 50, h: 50 },
+          { code: 'KeyS', label: 'S', x: 145, y: 180, w: 50, h: 50 },
+          { code: 'KeyD', label: 'D', x: 200, y: 180, w: 50, h: 50 },
+          { code: 'KeyF', label: 'F', x: 255, y: 180, w: 50, h: 50 },
+          { code: 'KeyG', label: 'G', x: 310, y: 180, w: 50, h: 50 },
+          { code: 'KeyH', label: 'H', x: 365, y: 180, w: 50, h: 50 },
+          { code: 'KeyJ', label: 'J', x: 420, y: 180, w: 50, h: 50 },
+          { code: 'KeyK', label: 'K', x: 475, y: 180, w: 50, h: 50 },
+          { code: 'KeyL', label: 'L', x: 530, y: 180, w: 50, h: 50 },
+          { code: 'Semicolon', label: ';+', x: 585, y: 180, w: 50, h: 50 },
+          { code: 'Quote', label: ':*', x: 640, y: 180, w: 50, h: 50 },
+          { code: 'Backslash', label: ']}', x: 695, y: 180, w: 50, h: 50 },
+          { code: 'Enter', label: 'Enter', x: 750, y: 180, w: 85, h: 50 },
+          { code: 'Numpad4', label: '4', x: 1045, y: 180, w: 50, h: 50 },
+          { code: 'Numpad5', label: '5', x: 1100, y: 180, w: 50, h: 50 },
+          { code: 'Numpad6', label: '6', x: 1155, y: 180, w: 50, h: 50 },
+        ],
+        // Row 5: Shift row (JIS)
+        [
+          { code: 'ShiftLeft', label: 'Shift', x: 0, y: 235, w: 110, h: 50 },
+          { code: 'KeyZ', label: 'Z', x: 115, y: 235, w: 50, h: 50 },
+          { code: 'KeyX', label: 'X', x: 170, y: 235, w: 50, h: 50 },
+          { code: 'KeyC', label: 'C', x: 225, y: 235, w: 50, h: 50 },
+          { code: 'KeyV', label: 'V', x: 280, y: 235, w: 50, h: 50 },
+          { code: 'KeyB', label: 'B', x: 335, y: 235, w: 50, h: 50 },
+          { code: 'KeyN', label: 'N', x: 390, y: 235, w: 50, h: 50 },
+          { code: 'KeyM', label: 'M', x: 445, y: 235, w: 50, h: 50 },
+          { code: 'Comma', label: ',<', x: 500, y: 235, w: 50, h: 50 },
+          { code: 'Period', label: '.>', x: 555, y: 235, w: 50, h: 50 },
+          { code: 'Slash', label: '/?', x: 610, y: 235, w: 50, h: 50 },
+          { code: 'IntlRo', label: '\\_', x: 665, y: 235, w: 50, h: 50 },
+          { code: 'ShiftRight', label: 'Shift', x: 720, y: 235, w: 115, h: 50 },
+          { code: 'ArrowUp', label: '↑', x: 915, y: 235, w: 50, h: 50 },
+          { code: 'Numpad1', label: '1', x: 1045, y: 235, w: 50, h: 50 },
+          { code: 'Numpad2', label: '2', x: 1100, y: 235, w: 50, h: 50 },
+          { code: 'Numpad3', label: '3', x: 1155, y: 235, w: 50, h: 50 },
+          { code: 'NumpadEnter', label: 'Enter', x: 1210, y: 235, w: 50, h: 105 },
+        ],
+        // Row 6: Control row (JIS)
+        [
+          { code: 'ControlLeft', label: 'Ctrl', x: 0, y: 290, w: 65, h: 50 },
+          { code: 'MetaLeft', label: 'Win', x: 70, y: 290, w: 50, h: 50 },
+          { code: 'AltLeft', label: 'Alt', x: 125, y: 290, w: 50, h: 50 },
+          { code: 'NonConvert', label: '無変換', x: 180, y: 290, w: 60, h: 50 },
+          { code: 'Space', label: 'Space', x: 245, y: 290, w: 175, h: 50 },
+          { code: 'Convert', label: '変換', x: 425, y: 290, w: 60, h: 50 },
+          { code: 'KanaMode', label: 'カナ', x: 490, y: 290, w: 60, h: 50 },
+          { code: 'AltRight', label: 'Alt', x: 555, y: 290, w: 50, h: 50 },
+          { code: 'MetaRight', label: 'Win', x: 610, y: 290, w: 50, h: 50 },
+          { code: 'ContextMenu', label: 'Menu', x: 665, y: 290, w: 55, h: 50 },
+          { code: 'ControlRight', label: 'Ctrl', x: 725, y: 290, w: 110, h: 50 },
+          { code: 'ArrowLeft', label: '←', x: 860, y: 290, w: 50, h: 50 },
+          { code: 'ArrowDown', label: '↓', x: 915, y: 290, w: 50, h: 50 },
+          { code: 'ArrowRight', label: '→', x: 970, y: 290, w: 50, h: 50 },
+          { code: 'Numpad0', label: '0', x: 1045, y: 290, w: 105, h: 50 },
+          { code: 'NumpadDecimal', label: '.', x: 1155, y: 290, w: 50, h: 50 },
+        ],
+      ]
+    };
+
+    let keyboardLayout = keyboardLayouts.us;
+    // AHKキーマップ
+    const ahkKeyMap = {
+      'Escape': 'Esc', 'Digit1': '1', 'Digit2': '2', 'Digit3': '3', 'Digit4': '4',
+      'Digit5': '5', 'Digit6': '6', 'Digit7': '7', 'Digit8': '8', 'Digit9': '9', 'Digit0': '0',
+      'Minus': '-', 'Equal': '=', 'Backspace': 'Backspace', 'Tab': 'Tab',
+      'KeyQ': 'q', 'KeyW': 'w', 'KeyE': 'e', 'KeyR': 'r', 'KeyT': 't',
+      'KeyY': 'y', 'KeyU': 'u', 'KeyI': 'i', 'KeyO': 'o', 'KeyP': 'p',
+      'BracketLeft': '[', 'BracketRight': ']', 'Backslash': '\\',
+      'CapsLock': 'CapsLock', 'KeyA': 'a', 'KeyS': 's', 'KeyD': 'd', 'KeyF': 'f',
+      'KeyG': 'g', 'KeyH': 'h', 'KeyJ': 'j', 'KeyK': 'k', 'KeyL': 'l',
+      'Semicolon': 'sc027', 'Quote': '\'', 'Enter': 'Enter',
+      'ShiftLeft': 'LShift', 'KeyZ': 'z', 'KeyX': 'x', 'KeyC': 'c', 'KeyV': 'v',
+      'KeyB': 'b', 'KeyN': 'n', 'KeyM': 'm', 'Comma': ',', 'Period': '.', 'Slash': '/',
+      'ShiftRight': 'RShift', 'ControlLeft': 'LControl', 'MetaLeft': 'LWin',
+      'AltLeft': 'LAlt', 'Space': 'Space', 'AltRight': 'RAlt', 'MetaRight': 'RWin',
+      'ContextMenu': 'AppsKey', 'ControlRight': 'RControl',
+      'PrintScreen': 'PrintScreen', 'ScrollLock': 'ScrollLock', 'Pause': 'Pause',
+      'Insert': 'Insert', 'Delete': 'Delete', 'Home': 'Home', 'End': 'End',
+      'PageUp': 'PgUp', 'PageDown': 'PgDn',
+      'ArrowLeft': 'Left', 'ArrowUp': 'Up', 'ArrowRight': 'Right', 'ArrowDown': 'Down',
+      'NumLock': 'NumLock', 'NumpadDivide': 'NumpadDiv', 'NumpadMultiply': 'NumpadMult',
+      'NumpadSubtract': 'NumpadSub', 'NumpadAdd': 'NumpadAdd', 'NumpadEnter': 'NumpadEnter',
+      'Numpad0': 'Numpad0', 'Numpad1': 'Numpad1', 'Numpad2': 'Numpad2', 'Numpad3': 'Numpad3',
+      'Numpad4': 'Numpad4', 'Numpad5': 'Numpad5', 'Numpad6': 'Numpad6', 'Numpad7': 'Numpad7',
+      'Numpad8': 'Numpad8', 'Numpad9': 'Numpad9', 'NumpadDecimal': 'NumpadDot',
+      'F1': 'F1', 'F2': 'F2', 'F3': 'F3', 'F4': 'F4', 'F5': 'F5', 'F6': 'F6',
+      'F7': 'F7', 'F8': 'F8', 'F9': 'F9', 'F10': 'F10', 'F11': 'F11', 'F12': 'F12',
+      'Backquote': '`',
+      // 日本語配列専用キー
+      'Zenkaku': 'vk1Dsc07B',  // 半角/全角
+      'IntlYen': 'vk5Csc07D',   // ¥キー
+      'IntlRo': 'vkE2sc073',    // ろキー（_キー）
+      'NonConvert': 'sc07B',    // 無変換（SCコード使用で定義不要）
+      'Convert': 'sc079',       // 変換（SCコード使用で定義不要）
+      'KanaMode': 'vkF2sc070',   // カナ/ローマ字
+      // 特殊アクション
+      'Disable': 'return',
+      'LButton': 'LButton',
+      'RButton': 'RButton',
+      'MButton': 'MButton',
+      'XButton1': 'XButton1',
+      'XButton2': 'XButton2',
+      'WheelUp': 'WheelUp',
+      'WheelDown': 'WheelDown',
+      'WheelLeft': 'WheelLeft',
+      'WheelRight': 'WheelRight',
+      // メディアキー
+      'Media_Play_Pause': 'Media_Play_Pause',
+      'Media_Stop': 'Media_Stop',
+      'Media_Prev': 'Media_Prev',
+      'Media_Next': 'Media_Next',
+      'Volume_Up': 'Volume_Up',
+      'Volume_Down': 'Volume_Down',
+      'Volume_Mute': 'Volume_Mute',
+      // ブラウザキー
+      'Browser_Back': 'Browser_Back',
+      'Browser_Forward': 'Browser_Forward',
+      'Browser_Refresh': 'Browser_Refresh',
+      'Browser_Home': 'Browser_Home'
+    };
+
+    // 特殊アクションのラベル
+    const specialActionLabels = {
+      'LButton': '🖱️左クリック',
+      'RButton': '🖱️右クリック',
+      'MButton': '🖱️中クリック',
+      'XButton1': '🖱️戻る',
+      'XButton2': '🖱️進む',
+      'WheelUp': '🖱️↑',
+      'WheelDown': '🖱️↓',
+      'WheelLeft': '🖱️←',
+      'WheelRight': '🖱️→',
+      'Media_Play_Pause': '⏯️',
+      'Media_Stop': '⏹️',
+      'Media_Prev': '⏮️',
+      'Media_Next': '⏭️',
+      'Volume_Up': '🔊',
+      'Volume_Down': '🔉',
+      'Volume_Mute': '🔇',
+      'Browser_Back': '◀️',
+      'Browser_Forward': '▶️',
+      'Browser_Refresh': '🔄',
+      'Browser_Home': '🏠',
+      'Disable': '🚫無効'
+    };
+
+    // 初期化
+    function init() {
+      initModal();
+      adjustBodyPadding();
+      renderLayerTabs();
+      renderLayerSettings();
+      renderKeyboard();
+      updateSelectedKeysDisplay();
+      populateLayerKeySelect();
+      
+      // ウィンドウリサイズ時にも調整
+      window.addEventListener('resize', adjustBodyPadding);
+    }
+
+    // 固定ヘッダーの高さに応じてbodyのpadding-topを調整
+    function adjustBodyPadding() {
+      const header = document.querySelector('.fixed-header');
+      if (header) {
+        const headerHeight = header.offsetHeight;
+        document.body.style.paddingTop = (headerHeight + 20) + 'px';
+      }
+    }
+
+    // レイヤータブ描画
+    function renderLayerTabs() {
+      const tabsContainer = document.getElementById('layerTabs');
+      tabsContainer.innerHTML = '';
+
+      layers.forEach(layer => {
+        const tab = document.createElement('div');
+        tab.className = 'layer-tab' + (layer.id === currentLayerId ? ' active' : '');
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = layer.name;
+        tab.appendChild(nameSpan);
+
+        if (layer.layerKey) {
+          const badge = document.createElement('span');
+          badge.className = 'layer-key-badge';
+          badge.textContent = getKeyLabel(layer.layerKey);
+          tab.appendChild(badge);
+        }
+
+        if (!layer.isBase) {
+          const deleteBtn = document.createElement('span');
+          deleteBtn.className = 'delete-layer';
+          deleteBtn.textContent = '×';
+          deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteLayer(layer.id);
+          };
+          tab.appendChild(deleteBtn);
+        }
+
+        tab.onclick = () => switchLayer(layer.id);
+        tabsContainer.appendChild(tab);
+      });
+
+      // 新規レイヤー追加ボタン
+      const addBtn = document.createElement('button');
+      addBtn.className = 'add-layer-btn';
+      addBtn.textContent = '+ 新規レイヤー';
+      addBtn.onclick = addLayer;
+      tabsContainer.appendChild(addBtn);
+    }
+
+    // レイヤー設定パネル描画
+    function renderLayerSettings() {
+      const layer = layers.find(l => l.id === currentLayerId);
+      if (!layer) return;
+
+      document.getElementById('layerName').value = layer.name;
+      document.getElementById('layerName').onchange = (e) => {
+        layer.name = e.target.value;
+        renderLayerTabs();
+      };
+
+      const layerKeyRow = document.getElementById('layerKeyRow');
+      const layerKeySelect = document.getElementById('layerKeySelect');
+      
+      if (layer.isBase) {
+        layerKeyRow.style.display = 'none';
+      } else {
+        layerKeyRow.style.display = 'flex';
+        
+        // レイヤーキー選択肢を生成（使用中のキーを無効化）
+        populateLayerKeySelect();
+        
+        layerKeySelect.value = layer.layerKey || '';
+        layerKeySelect.onchange = (e) => {
+          const newLayerKey = e.target.value || null;
+          const oldLayerKey = layer.layerKey;
+          
+          // レイヤーキーの重複チェック
+          if (newLayerKey) {
+            const duplicateLayer = layers.find(l => 
+              !l.isBase && l.id !== layer.id && l.layerKey === newLayerKey
+            );
+            
+            if (duplicateLayer) {
+              alert(`レイヤーキー「${getKeyLabel(newLayerKey)}」は既に「${duplicateLayer.name}」で使用されています。\n別のキーを選択してください。`);
+              // 選択を元に戻す
+              layerKeySelect.value = oldLayerKey || '';
+              return;
+            }
+          }
+          
+          layer.layerKey = newLayerKey;
+          
+          // Base Layerを取得
+          const baseLayer = layers.find(l => l.isBase);
+          if (!baseLayer) return;
+          
+          // 新しいレイヤーキーが設定された場合、Base Layerに無効化マッピングを追加
+          if (newLayerKey) {
+            // Base Layer内の既存の無効化マッピングを探す
+            const existingDisableIndex = baseLayer.mappings.findIndex(m => 
+              m.input.length === 1 && 
+              m.input[0] === newLayerKey && 
+              m.output.length === 1 && 
+              m.output[0] === 'Disable'
+            );
+            
+            // まだ無効化マッピングがなければBase Layerに追加
+            if (existingDisableIndex === -1) {
+              baseLayer.mappings.push({
+                input: [newLayerKey],
+                output: ['Disable'],
+                outputModifiers: []
+              });
+            }
+          }
+          
+          // 古いレイヤーキーの無効化マッピングをBase Layerから削除
+          if (oldLayerKey && oldLayerKey !== newLayerKey) {
+            // 他のレイヤーで同じキーがレイヤーキーとして使われていないか確認
+            const otherLayersUsingOldKey = layers.some(l => 
+              !l.isBase && l.id !== layer.id && l.layerKey === oldLayerKey
+            );
+            
+            // 他のレイヤーで使われていなければ削除
+            if (!otherLayersUsingOldKey) {
+              const oldDisableIndex = baseLayer.mappings.findIndex(m =>
+                m.input.length === 1 &&
+                m.input[0] === oldLayerKey &&
+                m.output.length === 1 &&
+                m.output[0] === 'Disable'
+              );
+              if (oldDisableIndex !== -1) {
+                baseLayer.mappings.splice(oldDisableIndex, 1);
+              }
+            }
+          }
+          
+          // 現在のレイヤーと、Base Layerの両方を更新
+          updateMappingList();
+          generateAHK();
+          renderLayerTabs();
+          renderKeyboard();
+          
+          // レイヤーキー選択肢を再生成（使用中表示を更新）
+          populateLayerKeySelect();
+          
+          // 現在の値を再設定
+          layerKeySelect.value = newLayerKey || '';
+        };
+      }
+    }
+
+    // レイヤーキー選択肢の生成
+    function populateLayerKeySelect() {
+      const select = document.getElementById('layerKeySelect');
+      const currentLayer = layers.find(l => l.id === currentLayerId);
+      select.innerHTML = '<option value="">選択してください</option>';
+      
+      // 全キーを選択肢に追加
+      const allKeys = [];
+      keyboardLayout.forEach(row => {
+        row.forEach(key => {
+          allKeys.push({ code: key.code, label: key.label });
+        });
+      });
+
+      // 使用中のレイヤーキーを取得
+      const usedLayerKeys = new Set();
+      layers.forEach(layer => {
+        if (!layer.isBase && layer.layerKey && layer.id !== currentLayerId) {
+          usedLayerKeys.add(layer.layerKey);
+        }
+      });
+
+      allKeys.sort((a, b) => a.label.localeCompare(b.label));
+      allKeys.forEach(key => {
+        const option = document.createElement('option');
+        option.value = key.code;
+        
+        // 使用中のキーは無効化して表示
+        if (usedLayerKeys.has(key.code)) {
+          option.textContent = `${key.label} (使用中)`;
+          option.disabled = true;
+          option.style.color = '#999';
+        } else {
+          option.textContent = key.label;
+        }
+        
+        select.appendChild(option);
+      });
+    }
+
+    // レイヤー追加
+    function addLayer() {
+      const newLayer = {
+        id: nextLayerId++,
+        name: `Layer ${nextLayerId - 1}`,
+        isBase: false,
+        layerKey: null,
+        mappings: []
+      };
+      layers.push(newLayer);
+      currentLayerId = newLayer.id;
+      renderLayerTabs();
+      renderLayerSettings();
+      renderKeyboard();
+      clearSelection();
+    }
+
+    // レイヤー削除
+    function deleteLayer(layerId) {
+      if (layers.length <= 1) {
+        alert('最後のレイヤーは削除できません');
+        return;
+      }
+      
+      if (!confirm('このレイヤーを削除しますか？')) return;
+
+      // 削除するレイヤーのレイヤーキーを取得
+      const deletingLayer = layers.find(l => l.id === layerId);
+      const deletingLayerKey = deletingLayer ? deletingLayer.layerKey : null;
+
+      layers = layers.filter(l => l.id !== layerId);
+      
+      // 削除したレイヤーのレイヤーキーが、他のレイヤーで使われていないか確認
+      if (deletingLayerKey) {
+        const otherLayersUsingKey = layers.some(l => 
+          !l.isBase && l.layerKey === deletingLayerKey
+        );
+        
+        // 他のレイヤーで使われていなければ、Base Layerから無効化マッピングを削除
+        if (!otherLayersUsingKey) {
+          const baseLayer = layers.find(l => l.isBase);
+          if (baseLayer) {
+            const disableIndex = baseLayer.mappings.findIndex(m =>
+              m.input.length === 1 &&
+              m.input[0] === deletingLayerKey &&
+              m.output.length === 1 &&
+              m.output[0] === 'Disable'
+            );
+            if (disableIndex !== -1) {
+              baseLayer.mappings.splice(disableIndex, 1);
+            }
+          }
+        }
+      }
+      
+      if (currentLayerId === layerId) {
+        currentLayerId = layers[0].id;
+      }
+      renderLayerTabs();
+      renderLayerSettings();
+      renderKeyboard();
+      updateMappingList();
+      generateAHK();
+    }
+
+    // レイヤー切り替え
+    function switchLayer(layerId) {
+      currentLayerId = layerId;
+      renderLayerTabs();
+      renderLayerSettings();
+      renderKeyboard();
+      clearSelection();
+      updateMappingList();
+    }
+
+    // キーボード描画
+    function renderKeyboard() {
+      const keyboard = document.getElementById('keyboard');
+      keyboard.innerHTML = '';
+
+      const layer = layers.find(l => l.id === currentLayerId);
+      if (!layer) return;
+
+      keyboardLayout.forEach(row => {
+        row.forEach(keyInfo => {
+          const keyEl = document.createElement('div');
+          keyEl.className = 'key';
+          keyEl.style.left = keyInfo.x + 'px';
+          keyEl.style.top = keyInfo.y + 'px';
+          keyEl.style.width = keyInfo.w + 'px';
+          keyEl.style.height = keyInfo.h + 'px';
+
+          const mainLabel = document.createElement('div');
+          mainLabel.className = 'key-main-label';
+          mainLabel.textContent = keyInfo.label;
+          keyEl.appendChild(mainLabel);
+
+          // マッピング情報表示
+          const mapping = layer.mappings.find(m => 
+            m.input.includes(keyInfo.code)
+          );
+          if (mapping) {
+            keyEl.classList.add('mapped');
+            const subLabel = document.createElement('div');
+            subLabel.className = 'key-sub-label';
+            
+            // 修飾キーを含めた出力文字列を生成
+            let outputStr = '';
+            if (mapping.outputModifiers && mapping.outputModifiers.length > 0) {
+              outputStr = mapping.outputModifiers.map(m => {
+                const mod = modifierKeys.find(mk => mk.code === m);
+                return mod ? mod.label : m;
+              }).join('+');
+              if (mapping.output.length > 0) {
+                outputStr += '+';
+              }
+            }
+            outputStr += mapping.output.map(k => getKeyLabel(k)).join('+');
+            
+            subLabel.textContent = '→' + outputStr;
+            keyEl.appendChild(subLabel);
+          }
+
+          // レイヤーキー表示
+          if (!layer.isBase && layer.layerKey === keyInfo.code) {
+            keyEl.classList.add('layer-key');
+          }
+
+          // 選択状態
+          if (selectionMode === 'input' && inputKeys.includes(keyInfo.code)) {
+            keyEl.classList.add('input-selected');
+          }
+          if (selectionMode === 'output' && outputKeys.includes(keyInfo.code)) {
+            keyEl.classList.add('output-selected');
+          }
+
+          keyEl.onclick = () => handleKeyClick(keyInfo.code);
+          keyboard.appendChild(keyEl);
+        });
+      });
+    }
+
+    // キークリック処理
+    function handleKeyClick(keyCode) {
+      if (selectionMode === 'input') {
+        if (inputKeys.includes(keyCode)) {
+          inputKeys = inputKeys.filter(k => k !== keyCode);
+        } else {
+          inputKeys.push(keyCode);
+        }
+      } else {
+        if (outputKeys.includes(keyCode)) {
+          outputKeys = outputKeys.filter(k => k !== keyCode);
+        } else {
+          outputKeys.push(keyCode);
+        }
+      }
+      updateSelectedKeysDisplay();
+      renderKeyboard();
+    }
+
+    // 選択表示更新
+    function updateSelectedKeysDisplay() {
+      const inputDisplay = document.getElementById('inputKeysDisplay');
+      const outputDisplay = document.getElementById('outputKeysDisplay');
+
+      if (inputKeys.length === 0) {
+        inputDisplay.innerHTML = '<span style="color: #999;">キーを選択してください</span>';
+      } else {
+        inputDisplay.innerHTML = inputKeys.map(k => 
+          `<span class="selection-tag input">${getKeyLabel(k)}</span>`
+        ).join('');
+      }
+
+      if (outputModifiers.length === 0 && outputKeys.length === 0) {
+        outputDisplay.innerHTML = '<span style="color: #999;">キーを選択してください</span>';
+      } else {
+        let html = '';
+        
+        // 修飾キー表示
+        if (outputModifiers.length > 0) {
+          html += outputModifiers.map(m => {
+            const mod = modifierKeys.find(mk => mk.code === m);
+            return `<span class="selection-tag output">${mod ? mod.label : m}</span>`;
+          }).join('');
+        }
+        
+        // プラス記号
+        if (outputModifiers.length > 0 && outputKeys.length > 0) {
+          html += '<span style="margin: 0 5px; font-weight: bold;">+</span>';
+        }
+        
+        // 通常キー表示
+        if (outputKeys.length > 0) {
+          html += outputKeys.map(k => 
+            `<span class="selection-tag output">${getKeyLabel(k)}</span>`
+          ).join('');
+        }
+        
+        outputDisplay.innerHTML = html;
+      }
+    }
+
+    // 選択モード切り替え
+    function setSelectionMode(mode) {
+      selectionMode = mode;
+      const inputBtn = document.getElementById('inputModeBtn');
+      const outputBtn = document.getElementById('outputModeBtn');
+
+      inputBtn.className = 'mode-btn';
+      outputBtn.className = 'mode-btn';
+
+      if (mode === 'input') {
+        inputBtn.classList.add('active-input');
+      }
+
+      renderKeyboard();
+    }
+
+    // キーボードレイアウト切り替え
+    function changeKeyboardLayout() {
+      const select = document.getElementById('keyboardLayoutSelect');
+      currentLayout = select.value;
+      keyboardLayout = keyboardLayouts[currentLayout];
+      
+      // レイヤーキー選択肢を再生成
+      populateLayerKeySelect();
+      
+      // 選択をクリア
+      clearSelection();
+      
+      // キーボードを再描画
+      renderKeyboard();
+    }
+
+    // マッピング追加
+    function addMapping() {
+      const layer = layers.find(l => l.id === currentLayerId);
+      if (!layer) return false;
+
+      if (inputKeys.length === 0 || (outputKeys.length === 0 && outputModifiers.length === 0)) {
+        alert('入力キーと出力キーを両方選択してください');
+        return false;
+      }
+
+      // 競合チェック：入力キーの完全一致
+      const existingMappingIndex = layer.mappings.findIndex(m => {
+        // 入力キーの数が異なれば別のマッピング
+        if (m.input.length !== inputKeys.length) return false;
+        
+        // すべてのキーが一致するか確認（順序は問わない）
+        const sorted1 = [...m.input].sort();
+        const sorted2 = [...inputKeys].sort();
+        return sorted1.every((key, i) => key === sorted2[i]);
+      });
+
+      if (existingMappingIndex !== -1) {
+        const existing = layer.mappings[existingMappingIndex];
+        
+        // 既存のマッピング情報を表示
+        const inputStr = inputKeys.map(k => getKeyLabel(k)).join('+');
+        let existingOutputStr = '';
+        if (existing.outputModifiers && existing.outputModifiers.length > 0) {
+          existingOutputStr = existing.outputModifiers.map(m => {
+            const mod = modifierKeys.find(mk => mk.code === m);
+            return mod ? mod.label : m;
+          }).join('+');
+          if (existing.output.length > 0) {
+            existingOutputStr += '+';
+          }
+        }
+        existingOutputStr += existing.output.map(k => getKeyLabel(k)).join('+');
+        
+        let newOutputStr = '';
+        if (outputModifiers.length > 0) {
+          newOutputStr = outputModifiers.map(m => {
+            const mod = modifierKeys.find(mk => mk.code === m);
+            return mod ? mod.label : m;
+          }).join('+');
+          if (outputKeys.length > 0) {
+            newOutputStr += '+';
+          }
+        }
+        newOutputStr += outputKeys.map(k => getKeyLabel(k)).join('+');
+        
+        const confirmMsg = `入力キー「${inputStr}」は既にマッピングされています。\n\n` +
+                          `現在: ${inputStr} → ${existingOutputStr}\n` +
+                          `新規: ${inputStr} → ${newOutputStr}\n\n` +
+                          `上書きしますか？`;
+        
+        if (!confirm(confirmMsg)) {
+          // キャンセルされた場合、falseを返す
+          return false;
+        }
+        
+        // 上書き（既存を削除してから追加）
+        layer.mappings.splice(existingMappingIndex, 1);
+      }
+
+      const mapping = {
+        input: [...inputKeys],
+        output: [...outputKeys],
+        outputModifiers: [...outputModifiers]
+      };
+
+      layer.mappings.push(mapping);
+      clearSelection();
+      updateMappingList();
+      generateAHK();
+      renderKeyboard();
+      return true;
+    }
+
+    // 選択クリア
+    function clearSelection() {
+      inputKeys = [];
+      outputKeys = [];
+      outputModifiers = [];
+      updateSelectedKeysDisplay();
+      renderKeyboard();
+    }
+
+    // 全マッピングクリア
+    function clearAllMappings() {
+      if (!confirm('すべてのレイヤーのマッピングをクリアしますか？')) return;
+      
+      layers.forEach(layer => {
+        layer.mappings = [];
+      });
+      
+      clearSelection();
+      updateMappingList();
+      generateAHK();
+      renderKeyboard();
+    }
+
+    // マッピングリスト更新
+    function updateMappingList() {
+      const list = document.getElementById('mappingList');
+      list.innerHTML = '';
+
+      const layer = layers.find(l => l.id === currentLayerId);
+      if (!layer) return;
+
+      layer.mappings.forEach((mapping, index) => {
+        const li = document.createElement('li');
+        li.className = 'mapping-item';
+
+        const info = document.createElement('div');
+        info.className = 'mapping-info';
+
+        const keysDiv = document.createElement('div');
+        keysDiv.className = 'mapping-keys';
+
+        const inputStr = mapping.input.map(k => getKeyLabel(k)).join('+');
+        
+        // 出力を整形（修飾キー対応）
+        let outputStr = '';
+        if (mapping.outputModifiers && mapping.outputModifiers.length > 0) {
+          outputStr = mapping.outputModifiers.map(m => {
+            const mod = modifierKeys.find(mk => mk.code === m);
+            return mod ? mod.label : m;
+          }).join('+');
+          if (mapping.output.length > 0) {
+            outputStr += '+';
+          }
+        }
+        outputStr += mapping.output.map(k => getKeyLabel(k)).join('+');
+
+        keysDiv.innerHTML = `${inputStr} <span class="mapping-arrow">→</span> ${outputStr}`;
+        info.appendChild(keysDiv);
+        li.appendChild(info);
+
+        // ボタンコンテナ
+        const btnContainer = document.createElement('div');
+        btnContainer.style.display = 'flex';
+        btnContainer.style.gap = '10px';
+
+        // 編集ボタン
+        const editBtn = document.createElement('button');
+        editBtn.className = 'delete-btn';
+        editBtn.style.background = '#4CAF50';
+        editBtn.textContent = '編集';
+        editBtn.onclick = () => editMapping(index);
+        btnContainer.appendChild(editBtn);
+
+        // 削除ボタン
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.textContent = '削除';
+        deleteBtn.onclick = () => deleteMapping(index);
+        btnContainer.appendChild(deleteBtn);
+
+        li.appendChild(btnContainer);
+        list.appendChild(li);
+      });
+    }
+
+    // マッピング削除
+    function deleteMapping(index) {
+      const layer = layers.find(l => l.id === currentLayerId);
+      if (!layer) return;
+
+      layer.mappings.splice(index, 1);
+      updateMappingList();
+      generateAHK();
+      renderKeyboard();
+    }
+
+    // マッピング編集
+    function editMapping(index) {
+      const layer = layers.find(l => l.id === currentLayerId);
+      if (!layer) return;
+
+      const mapping = layer.mappings[index];
+      
+      // 現在の選択をマッピングの値で上書き
+      inputKeys = [...mapping.input];
+      outputKeys = [...mapping.output];
+      outputModifiers = mapping.outputModifiers ? [...mapping.outputModifiers] : [];
+      
+      // UIを更新
+      updateSelectedKeysDisplay();
+      renderKeyboard();
+      
+      // マッピングを削除（編集モード）
+      layer.mappings.splice(index, 1);
+      updateMappingList();
+      generateAHK();
+      
+      // ユーザーに通知
+      alert('マッピングが編集モードになりました。変更後「マッピング追加」ボタンを押してください。');
+    }
+
+    // AHK生成
+    function generateAHK() {
+      // AutoHotkeyで特殊な意味を持つ文字をエスケープする関数
+      function escapeAhkKey(ahkKey) {
+        const needsEscape = [';'];  // セミコロンはコメント記号なのでエスケープ必要
+        if (needsEscape.includes(ahkKey)) {
+          return `{${ahkKey}}`;
+        }
+        return ahkKey;
+      }
+      
+      // SCコード→VKコード変換マップ（KeyWait用）
+      const scToVk = {
+        'sc079': 'vk1C',   // Convert（変換）
+        'sc07B': 'vkEB',   // NonConvert（無変換）
+        'sc027': 'sc027'   // Semicolon（セミコロン）JIS配列 - SCコードのまま使用
+      };
+      
+      // KeyWait用のキー名を取得（SCコードの場合はVKコードに変換）
+      function getKeyWaitName(ahkKey) {
+        if (scToVk[ahkKey]) {
+          return scToVk[ahkKey];
+        }
+        return ahkKey;
+      }
+      
+      let script = '; AutoHotkey v2 Layer Keymap Script\n';
+      script += '; Generated by AutoHotkey v2 Layer Keymap Editor\n';
+      script += '#Requires AutoHotkey v2.0\n';
+      script += 'SendMode "Input"\n';
+      script += 'SetWorkingDir A_ScriptDir\n';
+      script += 'InstallKeybdHook\n';
+      script += 'ProcessSetPriority "High"\n';
+      script += '\n';
+      
+      // CapsLockがレイヤーキーとして使われている場合、スクリプト起動時に設定
+      const capsLockUsedAsLayer = layers.some(l => !l.isBase && l.layerKey === 'CapsLock');
+      if (capsLockUsedAsLayer) {
+        script += 'SetCapsLockState "AlwaysOff"\n';
+      }
+      script += '\n';
+      
+      // レイヤーキーとして使われているキーのリスト
+      const layerKeys = new Set();
+      layers.forEach(l => {
+        if (!l.isBase && l.layerKey) {
+          layerKeys.add(l.layerKey);
+        }
+      });
+      
+      // Base Layerの処理
+      const baseLayer = layers.find(l => l.isBase);
+      if (baseLayer && baseLayer.mappings.length > 0) {
+        script += `; ${baseLayer.name}\n`;
+        
+        // Base Layerのマッピングを処理
+        baseLayer.mappings.forEach(mapping => {
+          if (mapping.output.length === 1 && mapping.output[0] === 'Disable') {
+            if (mapping.input.length === 1) {
+              const keyCode = mapping.input[0];
+              const ahkKey = ahkKeyMap[keyCode] || keyCode;
+              const isLayerKey = layerKeys.has(keyCode);
+              
+              if (isLayerKey) {
+                // レイヤーキーの場合はCapsLockのみ無効化
+                if (keyCode === 'CapsLock') {
+                  script += `${ahkKey}::return\n`;
+                } else {
+                  // CapsLock以外のレイヤーキーは無効化しない（コメントのみ）
+                  script += `; ${ahkKey} is used as layer key (not disabled to avoid conflicts)\n`;
+                }
+              } else {
+                // 通常の無効化
+                if (keyCode === 'CapsLock') {
+                  script += `${ahkKey}:: {\n`;
+                  script += `  SetCapsLockState "AlwaysOff"\n`;
+                  script += `}\n`;
+                } else {
+                  script += `${ahkKey}::return\n`;
+                }
+              }
+            }
+          }
+        });
+        
+        // CapsLock以外のレイヤーキーは定義しない
+        // （単独押しで本来の機能が発動するが、競合を避けるため）
+        
+        script += '\n';
+      }
+
+      // 非Baseレイヤーの処理
+      layers.forEach((layer, layerIndex) => {
+        if (layer.isBase || layer.mappings.length === 0) return;
+
+        script += `; ${layer.name}\n`;
+        
+        // レイヤーキーの定義はしない（既にBase Layerで定義済み）
+
+        layer.mappings.forEach(mapping => {
+          let inputStr = '';
+          let isLayerKeyCombo = false;  // レイヤーキー同士の組み合わせか
+          
+          // レイヤーキーを前置
+          if (!layer.isBase && layer.layerKey) {
+            const layerAhkKey = ahkKeyMap[layer.layerKey] || layer.layerKey.toLowerCase();
+            const escapedLayerKey = escapeAhkKey(layerAhkKey);
+            inputStr = escapedLayerKey;
+          }
+
+          // 入力キーがレイヤーキーかチェック
+          if (mapping.input.length === 1 && layerKeys.has(mapping.input[0])) {
+            isLayerKeyCombo = true;
+          }
+
+          // 入力キー
+          mapping.input.forEach((key, i) => {
+            const ahkKey = ahkKeyMap[key] || key.toLowerCase();
+            const escapedKey = escapeAhkKey(ahkKey);
+            if (inputStr) inputStr += ' & ';
+            inputStr += escapedKey;
+          });
+
+          // 無効化チェック
+          if (mapping.output.length === 1 && mapping.output[0] === 'Disable') {
+            // 単独キーの無効化
+            if (mapping.input.length === 1) {
+              const keyCode = mapping.input[0];
+              const ahkKey = ahkKeyMap[keyCode] || keyCode;
+              
+              // このキーがレイヤーキーとして使われているか確認
+              const isLayerKey = layerKeys.has(keyCode);
+              
+              if (isLayerKey) {
+                // レイヤーキーの場合は、各レイヤーの直前で定義されるのでスキップ
+                script += `; ${ahkKey} is defined as layer key\n`;
+              } else {
+                // 通常の無効化
+                if (keyCode === 'CapsLock') {
+                  script += `${ahkKey}:: {\n`;
+                  script += `  SetCapsLockState "AlwaysOff"\n`;
+                  script += `}\n`;
+                } else {
+                  script += `${ahkKey}::return\n`;
+                }
+              }
+            } else {
+              // 複数キーの組み合わせの無効化
+              script += `${inputStr}::return\n`;
+            }
+            return;
+          }
+
+          // マウスホイール操作
+          if (mapping.output.length === 1 && ['WheelUp', 'WheelDown', 'WheelLeft', 'WheelRight'].includes(mapping.output[0])) {
+            const wheelAction = mapping.output[0];
+            
+            // レイヤーキー同士の組み合わせの場合は#HotIf構文
+            if (isLayerKeyCombo && !layer.isBase && layer.layerKey) {
+              const layerAhkKey = ahkKeyMap[layer.layerKey] || layer.layerKey.toLowerCase();
+              const inputKeyCode = mapping.input[0];
+              const inputAhkKey = ahkKeyMap[inputKeyCode] || inputKeyCode.toLowerCase();
+              const escapedInputKey = escapeAhkKey(inputAhkKey);
+              
+              script += `#HotIf GetKeyState("${layerAhkKey}", "P")\n`;
+              script += `${escapedInputKey}::Click("${wheelAction}")\n`;
+              script += `#HotIf\n`;
+            } else if (!layer.isBase && layer.layerKey) {
+              // 通常のレイヤーキー組み合わせ
+              script += `${inputStr}::Click("${wheelAction}")\n`;
+            } else {
+              // 単独キーの場合
+              script += `${inputStr}::${wheelAction}\n`;
+            }
+            return;
+          }
+
+          // マウスボタン押しっぱなし対応
+          if (mapping.output.length === 1 && (!mapping.outputModifiers || mapping.outputModifiers.length === 0) && 
+              ['LButton', 'RButton', 'MButton', 'XButton1', 'XButton2'].includes(mapping.output[0])) {
+            const mouseButton = mapping.output[0];
+            const lastInputKey = mapping.input[mapping.input.length - 1];
+            
+            // AHKキー名を取得
+            let checkKey = ahkKeyMap[lastInputKey] || lastInputKey;
+            
+            // KeyXXX形式の場合は小文字1文字に変換
+            if (lastInputKey.startsWith('Key')) {
+              checkKey = lastInputKey.substring(3).toLowerCase();
+            }
+            
+            // KeyWait用にSCコードをVKコードに変換
+            checkKey = getKeyWaitName(checkKey);
+            
+            let clickType = 'Left';
+            if (mouseButton === 'RButton') clickType = 'Right';
+            else if (mouseButton === 'MButton') clickType = 'Middle';
+            else if (mouseButton === 'XButton1') clickType = 'X1';
+            else if (mouseButton === 'XButton2') clickType = 'X2';
+            
+            // レイヤーキー同士の組み合わせの場合は#HotIf構文
+            if (isLayerKeyCombo && !layer.isBase && layer.layerKey) {
+              const layerAhkKey = ahkKeyMap[layer.layerKey] || layer.layerKey.toLowerCase();
+              const inputAhkKey = ahkKeyMap[lastInputKey] || lastInputKey.toLowerCase();
+              const escapedInputKey = escapeAhkKey(inputAhkKey);
+              
+              script += `#HotIf GetKeyState("${layerAhkKey}", "P")\n`;
+              script += `${escapedInputKey}:: {\n`;
+              script += `  Click("Down ${clickType}")\n`;
+              script += `  KeyWait("${checkKey}")\n`;
+              script += `  Click("Up ${clickType}")\n`;
+              script += `}\n`;
+              script += `#HotIf\n`;
+            } else {
+              // 通常の処理
+              script += `${inputStr}:: {\n`;
+              script += `  Click("Down ${clickType}")\n`;
+              script += `  KeyWait("${checkKey}")\n`;
+              script += `  Click("Up ${clickType}")\n`;
+              script += `}\n`;
+            }
+            return;
+          }
+
+          // 言語切り替えアクション
+          if (mapping.output.length === 1 && !mapping.outputModifiers?.length) {
+            const langSwitch = languageSwitchActions.find(a => a.code === mapping.output[0]);
+            if (langSwitch) {
+              // レイヤーキー同士の組み合わせの場合は#HotIf構文
+              if (isLayerKeyCombo && !layer.isBase && layer.layerKey) {
+                const layerAhkKey = ahkKeyMap[layer.layerKey] || layer.layerKey.toLowerCase();
+                const inputKeyCode = mapping.input[0];
+                const inputAhkKey = ahkKeyMap[inputKeyCode] || inputKeyCode.toLowerCase();
+                const escapedInputKey = escapeAhkKey(inputAhkKey);
+                
+                script += `#HotIf GetKeyState("${layerAhkKey}", "P")\n`;
+                script += `${escapedInputKey}::${langSwitch.ahk}\n`;
+                script += `#HotIf\n`;
+              } else {
+                script += `${inputStr}::${langSwitch.ahk}\n`;
+              }
+              return;
+            }
+          }
+
+          // カスタム文字列
+          if (mapping.output.length === 1 && !mapping.outputModifiers?.length) {
+            const customStr = customStrings.find(s => s.code === mapping.output[0]);
+            if (customStr) {
+              // エスケープ処理
+              let escapedValue = customStr.value
+                .replace(/\\/g, '\\\\')
+                .replace(/"/g, '\\"')
+                .replace(/\n/g, '`n')
+                .replace(/\r/g, '`r')
+                .replace(/\t/g, '`t');
+              
+              // レイヤーキー同士の組み合わせの場合は#HotIf構文
+              if (isLayerKeyCombo && !layer.isBase && layer.layerKey) {
+                const layerAhkKey = ahkKeyMap[layer.layerKey] || layer.layerKey.toLowerCase();
+                const inputKeyCode = mapping.input[0];
+                const inputAhkKey = ahkKeyMap[inputKeyCode] || inputKeyCode.toLowerCase();
+                const escapedInputKey = escapeAhkKey(inputAhkKey);
+                
+                script += `#HotIf GetKeyState("${layerAhkKey}", "P")\n`;
+                script += `${escapedInputKey}::SendText("${escapedValue}")\n`;
+                script += `#HotIf\n`;
+              } else {
+                script += `${inputStr}::SendText("${escapedValue}")\n`;
+              }
+              return;
+            }
+          }
+
+          // メディアキー・ブラウザキー（修飾キーなし、単一キー）
+          if (mapping.output.length === 1 && !mapping.outputModifiers?.length) {
+            const outKey = mapping.output[0];
+            if (outKey.startsWith('Media_') || outKey.startsWith('Volume_') || 
+                outKey.startsWith('Browser_')) {
+              const ahkKey = ahkKeyMap[outKey] || outKey;
+              script += `${inputStr}::SendEvent("{${ahkKey}}")\n`;
+              return;
+            }
+          }
+
+          // ナビゲーションキーの加速付き押し続け処理
+          // ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Home, End, PageUp, PageDown
+          const navigationKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'];
+          if (mapping.output.length === 1 && (!mapping.outputModifiers || mapping.outputModifiers.length === 0) && 
+              navigationKeys.includes(mapping.output[0])) {
+            const navKey = mapping.output[0];
+            const ahkKey = ahkKeyMap[navKey] || navKey;
+            const lastInputKey = mapping.input[mapping.input.length - 1];
+            
+            // 入力キーのチェック用キー名を取得
+            let checkKey = ahkKeyMap[lastInputKey] || lastInputKey;
+            if (lastInputKey.startsWith('Key')) {
+              checkKey = lastInputKey.substring(3).toLowerCase();
+            }
+            
+            // レイヤーキー同士の組み合わせの場合は#HotIf構文
+            if (isLayerKeyCombo && !layer.isBase && layer.layerKey) {
+              const layerAhkKey = ahkKeyMap[layer.layerKey] || layer.layerKey.toLowerCase();
+              const inputAhkKey = ahkKeyMap[lastInputKey] || lastInputKey.toLowerCase();
+              const escapedInputKey = escapeAhkKey(inputAhkKey);
+              
+              script += `#HotIf GetKeyState("${layerAhkKey}", "P")\n`;
+              script += `${escapedInputKey}:: {\n`;
+              script += `  modifiers := ""\n`;
+              script += `  if GetKeyState("Shift", "P")\n`;
+              script += `    modifiers .= "+"\n`;
+              script += `  if GetKeyState("Ctrl", "P")\n`;
+              script += `    modifiers .= "^"\n`;
+              script += `  if GetKeyState("Alt", "P")\n`;
+              script += `    modifiers .= "!"\n`;
+              script += `  \n`;
+              script += `  SendEvent(modifiers . "{${ahkKey}}")\n`;
+              script += `}\n`;
+              script += `#HotIf\n`;
+            } else {
+              // 通常の処理
+              script += `${inputStr}:: {\n`;
+              script += `  modifiers := ""\n`;
+              script += `  if GetKeyState("Shift", "P")\n`;
+              script += `    modifiers .= "+"\n`;
+              script += `  if GetKeyState("Ctrl", "P")\n`;
+              script += `    modifiers .= "^"\n`;
+              script += `  if GetKeyState("Alt", "P")\n`;
+              script += `    modifiers .= "!"\n`;
+              script += `  \n`;
+              script += `  SendEvent(modifiers . "{${ahkKey}}")\n`;
+              script += `}\n`;
+            }
+            return;
+          }
+
+          // 通常の出力キー（修飾キー対応）
+          let outputStr = '';
+          
+          // レイヤーキー同士の組み合わせの場合は#HotIf構文を使用
+          if (isLayerKeyCombo && !layer.isBase && layer.layerKey) {
+            // #HotIfディレクティブを使った実装
+            const layerAhkKey = ahkKeyMap[layer.layerKey] || layer.layerKey.toLowerCase();
+            const inputKeyCode = mapping.input[0];
+            const inputAhkKey = ahkKeyMap[inputKeyCode] || inputKeyCode.toLowerCase();
+            const escapedInputKey = escapeAhkKey(inputAhkKey);
+            
+            script += `#HotIf GetKeyState("${layerAhkKey}", "P")\n`;
+            
+            // 出力を生成
+            let ifOutputStr = '';
+            if (mapping.outputModifiers && mapping.outputModifiers.length > 0) {
+              mapping.outputModifiers.forEach(mod => {
+                const modKey = modifierKeys.find(m => m.code === mod);
+                if (modKey) {
+                  ifOutputStr += modKey.ahk;
+                }
+              });
+            }
+            
+            if (mapping.output.length === 1 && mapping.outputModifiers?.length > 0) {
+              const ahkKey = ahkKeyMap[mapping.output[0]] || mapping.output[0].toLowerCase();
+              ifOutputStr += ahkKey;
+            } else if (mapping.output.length === 1) {
+              const ahkKey = ahkKeyMap[mapping.output[0]] || mapping.output[0].toLowerCase();
+              ifOutputStr += `{${ahkKey}}`;
+            } else {
+              mapping.output.forEach(key => {
+                const ahkKey = ahkKeyMap[key] || key.toLowerCase();
+                ifOutputStr += `{${ahkKey}}`;
+              });
+            }
+            
+            script += `${escapedInputKey}::SendEvent("${ifOutputStr}")\n`;
+            script += `#HotIf\n`;
+            return;
+          }
+          
+          // 修飾キーシンボルを前置
+          if (mapping.outputModifiers && mapping.outputModifiers.length > 0) {
+            mapping.outputModifiers.forEach(mod => {
+              const modKey = modifierKeys.find(m => m.code === mod);
+              if (modKey) {
+                outputStr += modKey.ahk;
+              }
+            });
+          }
+          
+          // 出力キー
+          if (mapping.output.length === 1 && mapping.outputModifiers?.length > 0) {
+            // 修飾キー + 単一キーの場合（Send ^aのような形式）
+            const ahkKey = ahkKeyMap[mapping.output[0]] || mapping.output[0].toLowerCase();
+            outputStr += ahkKey;
+          } else if (mapping.output.length === 1) {
+            // 単一キーのみ
+            const ahkKey = ahkKeyMap[mapping.output[0]] || mapping.output[0].toLowerCase();
+            outputStr += `{${ahkKey}}`;
+          } else {
+            // 複数キー
+            mapping.output.forEach(key => {
+              const ahkKey = ahkKeyMap[key] || key.toLowerCase();
+              outputStr += `{${ahkKey}}`;
+            });
+          }
+
+          script += `${inputStr}::SendEvent("${outputStr}")\n`;
+        });
+
+        script += '\n';
+      });
+
+      document.getElementById('ahkOutput').textContent = script;
+    }
+
+    // キーラベル取得
+    function getKeyLabel(keyCode) {
+      // 特殊アクションの場合
+      if (specialActionLabels[keyCode]) {
+        return specialActionLabels[keyCode];
+      }
+      
+      const keyInfo = keyboardLayout.flat().find(k => k.code === keyCode);
+      return keyInfo ? keyInfo.label : keyCode;
+    }
+
+    // AHKダウンロード
+    function downloadAHK() {
+      const script = document.getElementById('ahkOutput').textContent;
+      const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+      const scriptBytes = new TextEncoder().encode(script);
+      const blob = new Blob([bom, scriptBytes], { type: 'text/plain;charset=utf-8' });
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // ファイル名に日時を含める (例: layer-keymap-v2_20250120_143025.ahk)
+      const now = new Date();
+      const dateStr = now.getFullYear() + 
+                     String(now.getMonth() + 1).padStart(2, '0') + 
+                     String(now.getDate()).padStart(2, '0') + '_' +
+                     String(now.getHours()).padStart(2, '0') + 
+                     String(now.getMinutes()).padStart(2, '0') + 
+                     String(now.getSeconds()).padStart(2, '0');
+      a.download = `layer-keymap-v2_${dateStr}.ahk`;
+      
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // JSON保存
+    function saveJSON() {
+      const now = new Date();
+      const timestamp = now.toISOString();
+      
+      const data = { 
+        version: EDITOR_VERSION,
+        created: timestamp,
+        layers,
+        currentLayout,
+        customStrings
+      };
+      
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // ファイル名に日時を含める (例: keymap-layers_20250120_143025.json)
+      const dateStr = now.getFullYear() + 
+                     String(now.getMonth() + 1).padStart(2, '0') + 
+                     String(now.getDate()).padStart(2, '0') + '_' +
+                     String(now.getHours()).padStart(2, '0') + 
+                     String(now.getMinutes()).padStart(2, '0') + 
+                     String(now.getSeconds()).padStart(2, '0');
+      a.download = `keymap-layers_${dateStr}.json`;
+      
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // JSON読込
+    function loadJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          
+          // バージョンチェック
+          const loadedVersion = data.version || '0.0.0';
+          console.log(`Loading JSON version: ${loadedVersion} (Current: ${EDITOR_VERSION})`);
+          
+          // バージョン警告（メジャーバージョンが異なる場合）
+          const loadedMajor = parseInt(loadedVersion.split('.')[0]);
+          const currentMajor = parseInt(EDITOR_VERSION.split('.')[0]);
+          
+          if (loadedMajor < currentMajor) {
+            const proceed = confirm(
+              `古いバージョン (v${loadedVersion}) で作成されたファイルです。\n` +
+              `現在のバージョン: v${EDITOR_VERSION}\n\n` +
+              `読み込みますか？\n` +
+              `（AHKスクリプトは最新のロジックで再生成されます）`
+            );
+            if (!proceed) return;
+          }
+          
+          layers = data.layers;
+          currentLayerId = layers[0].id;
+          nextLayerId = Math.max(...layers.map(l => l.id)) + 1;
+          
+          // カスタム文字列を復元
+          if (data.customStrings) {
+            customStrings = data.customStrings;
+            // 次のIDを更新
+            if (customStrings.length > 0) {
+              nextCustomStringId = Math.max(...customStrings.map(s => s.id)) + 1;
+            }
+          }
+          
+          // キーボードレイアウトを復元
+          if (data.currentLayout) {
+            currentLayout = data.currentLayout;
+            keyboardLayout = keyboardLayouts[currentLayout];
+            document.getElementById('keyboardLayoutSelect').value = currentLayout;
+          }
+          
+          renderLayerTabs();
+          renderLayerSettings();
+          renderKeyboard();
+          clearSelection();
+          updateMappingList();
+          
+          // 強制的にAHKスクリプトを再生成（最新のロジックで）
+          generateAHK();
+          
+          // 読み込み成功メッセージ
+          console.log('JSON loaded successfully and AHK script regenerated with latest logic');
+          
+        } catch (error) {
+          alert('ファイルの読み込みに失敗しました');
+          console.error(error);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // 起動
+    
+    // モーダル一時選択
+    let tempOutputKeys = [];
+    let tempOutputModifiers = [];
+
+    // 修飾キー定義
+    const modifierKeys = [
+      { code: 'ctrl', label: 'Ctrl', ahk: '^' },
+      { code: 'shift', label: 'Shift', ahk: '+' },
+      { code: 'alt', label: 'Alt', ahk: '!' },
+      { code: 'win', label: 'Win', ahk: '#' }
+    ];
+
+    // モーダル用アクション定義
+    const modalActions = {
+      mouse: [
+        { code: 'LButton', label: '🖱️ 左クリック' },
+        { code: 'RButton', label: '🖱️ 右クリック' },
+        { code: 'MButton', label: '🖱️ 中クリック' },
+        { code: 'XButton1', label: '🖱️ 戻る' },
+        { code: 'XButton2', label: '🖱️ 進む' },
+        { code: 'WheelUp', label: '🖱️ ホイール↑' },
+        { code: 'WheelDown', label: '🖱️ ホイール↓' },
+        { code: 'WheelLeft', label: '🖱️ ホイール←' },
+        { code: 'WheelRight', label: '🖱️ ホイール→' },
+      ],
+      media: [
+        { code: 'Media_Play_Pause', label: '⏯️ 再生/停止' },
+        { code: 'Media_Stop', label: '⏹️ 停止' },
+        { code: 'Media_Prev', label: '⏮️ 前の曲' },
+        { code: 'Media_Next', label: '⏭️ 次の曲' },
+        { code: 'Volume_Up', label: '🔊 音量+' },
+        { code: 'Volume_Down', label: '🔉 音量-' },
+        { code: 'Volume_Mute', label: '🔇 ミュート' },
+        { code: 'Browser_Back', label: '◀️ ブラウザ戻る' },
+        { code: 'Browser_Forward', label: '▶️ ブラウザ進む' },
+        { code: 'Browser_Refresh', label: '🔄 更新' },
+        { code: 'Browser_Home', label: '🏠 ホーム' },
+      ],
+      special: [
+        { code: 'Disable', label: '🚫 無効化' },
+      ]
+    };
+
+    // モーダル初期化
+    function initModal() {
+      renderModalGrids();
+    }
+
+    // モーダルグリッド描画
+    function renderModalGrids() {
+      // 修飾キーグリッド
+      const modGrid = document.getElementById('modifierModalGrid');
+      modGrid.innerHTML = '';
+      modifierKeys.forEach(mod => {
+        const div = document.createElement('div');
+        div.className = 'modal-key-item';
+        div.textContent = mod.label;
+        div.dataset.code = mod.code;
+        div.dataset.type = 'modifier';
+        div.onclick = () => toggleModalModifier(mod.code);
+        modGrid.appendChild(div);
+      });
+
+      // すべてのキーを取得
+      const allKeys = keyboardLayout.flat();
+      const uniqueKeys = Array.from(new Map(allKeys.map(k => [k.code, k])).values());
+      
+      // キーを分類
+      const functionKeys = uniqueKeys.filter(k => k.code.startsWith('F') && k.code.match(/^F\d+$/));
+      const numberKeys = uniqueKeys.filter(k => 
+        k.code.startsWith('Digit') || 
+        ['Backquote', 'Minus', 'Equal', 'BracketLeft', 'BracketRight', 'Backslash', 'Semicolon', 'Quote', 'Comma', 'Period', 'Slash', 'IntlYen', 'IntlRo'].includes(k.code)
+      );
+      const letterKeys = uniqueKeys.filter(k => k.code.startsWith('Key'));
+      const navKeys = uniqueKeys.filter(k => 
+        ['Insert', 'Delete', 'Home', 'End', 'PageUp', 'PageDown', 'ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 
+         'Tab', 'CapsLock', 'Enter', 'Backspace', 'Space', 'Escape', 'PrintScreen', 'ScrollLock', 'Pause',
+         'Zenkaku', 'NonConvert', 'Convert', 'KanaMode'].includes(k.code)
+      );
+      const numpadKeys = uniqueKeys.filter(k => 
+        k.code.startsWith('Numpad') || k.code === 'NumLock'
+      );
+
+      // ファンクションキーを描画（F1-F12順）
+      const funcGrid = document.getElementById('functionKeysGrid');
+      funcGrid.innerHTML = '';
+      functionKeys.sort((a, b) => {
+        const aNum = parseInt(a.code.substring(1));
+        const bNum = parseInt(b.code.substring(1));
+        return aNum - bNum;
+      });
+      functionKeys.forEach(key => {
+        const div = document.createElement('div');
+        div.className = 'modal-key-item';
+        div.textContent = key.label;
+        div.dataset.code = key.code;
+        div.onclick = () => toggleModalKey(key.code);
+        funcGrid.appendChild(div);
+      });
+
+      // 数字・記号キーを描画
+      const numGrid = document.getElementById('numberKeysGrid');
+      numGrid.innerHTML = '';
+      // 特定の順序で表示
+      const numberOrder = ['Backquote', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal', 'IntlYen', 'BracketLeft', 'BracketRight', 'Backslash', 'Semicolon', 'Quote', 'Comma', 'Period', 'Slash', 'IntlRo'];
+      numberOrder.forEach(code => {
+        const key = numberKeys.find(k => k.code === code);
+        if (key) {
+          const div = document.createElement('div');
+          div.className = 'modal-key-item';
+          div.textContent = key.label;
+          div.dataset.code = key.code;
+          div.onclick = () => toggleModalKey(key.code);
+          numGrid.appendChild(div);
+        }
+      });
+
+      // アルファベットを描画（A-Z順）
+      const letterGrid = document.getElementById('letterKeysGrid');
+      letterGrid.innerHTML = '';
+      letterKeys.sort((a, b) => a.code.localeCompare(b.code));
+      letterKeys.forEach(key => {
+        const div = document.createElement('div');
+        div.className = 'modal-key-item';
+        div.textContent = key.label;
+        div.dataset.code = key.code;
+        div.onclick = () => toggleModalKey(key.code);
+        letterGrid.appendChild(div);
+      });
+
+      // ナビゲーションキーを描画
+      const navGrid = document.getElementById('navKeysGrid');
+      navGrid.innerHTML = '';
+      const navOrder = ['Escape', 'Tab', 'CapsLock', 'Enter', 'Backspace', 'Space', 'Insert', 'Delete', 'Home', 'End', 'PageUp', 'PageDown', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'ArrowRight', 'PrintScreen', 'ScrollLock', 'Pause', 'Zenkaku', 'NonConvert', 'Convert', 'KanaMode'];
+      navOrder.forEach(code => {
+        const key = navKeys.find(k => k.code === code);
+        if (key) {
+          const div = document.createElement('div');
+          div.className = 'modal-key-item';
+          div.textContent = key.label;
+          div.dataset.code = key.code;
+          div.onclick = () => toggleModalKey(key.code);
+          navGrid.appendChild(div);
+        }
+      });
+
+      // テンキーを描画
+      const numpadGrid = document.getElementById('numpadKeysGrid');
+      numpadGrid.innerHTML = '';
+      const numpadOrder = ['NumLock', 'NumpadDivide', 'NumpadMultiply', 'NumpadSubtract', 'Numpad7', 'Numpad8', 'Numpad9', 'NumpadAdd', 'Numpad4', 'Numpad5', 'Numpad6', 'Numpad1', 'Numpad2', 'Numpad3', 'NumpadEnter', 'Numpad0', 'NumpadDecimal'];
+      numpadOrder.forEach(code => {
+        const key = numpadKeys.find(k => k.code === code);
+        if (key) {
+          const div = document.createElement('div');
+          div.className = 'modal-key-item';
+          div.textContent = key.label;
+          div.dataset.code = key.code;
+          div.onclick = () => toggleModalKey(key.code);
+          numpadGrid.appendChild(div);
+        }
+      });
+
+      // マウスグリッド
+      const mouseGrid = document.getElementById('mouseModalGrid');
+      mouseGrid.innerHTML = '';
+      modalActions.mouse.forEach(action => {
+        const div = document.createElement('div');
+        div.className = 'modal-key-item';
+        div.textContent = action.label;
+        div.dataset.code = action.code;
+        div.onclick = () => toggleModalKey(action.code);
+        mouseGrid.appendChild(div);
+      });
+
+      // メディアグリッド
+      const mediaGrid = document.getElementById('mediaModalGrid');
+      mediaGrid.innerHTML = '';
+      modalActions.media.forEach(action => {
+        const div = document.createElement('div');
+        div.className = 'modal-key-item';
+        div.textContent = action.label;
+        div.dataset.code = action.code;
+        div.onclick = () => toggleModalKey(action.code);
+        mediaGrid.appendChild(div);
+      });
+
+      // 特殊グリッド
+      const specialGrid = document.getElementById('specialModalGrid');
+      specialGrid.innerHTML = '';
+      modalActions.special.forEach(action => {
+        const div = document.createElement('div');
+        div.className = 'modal-key-item';
+        div.textContent = action.label;
+        div.dataset.code = action.code;
+        div.onclick = () => toggleModalKey(action.code);
+        specialGrid.appendChild(div);
+      });
+
+      // 言語切り替えグリッド
+      renderLanguageSwitchGrid();
+
+      // カスタム文字列グリッド
+      renderCustomStringsGrid();
+    }
+
+    // モーダルを開く
+    function openOutputModal() {
+      tempOutputKeys = [...outputKeys];
+      tempOutputModifiers = [...outputModifiers];
+      renderModalGrids(); // グリッドを再描画
+      updateModalUI();
+      document.getElementById('outputModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    // モーダルを閉じる
+    function closeOutputModal() {
+      document.getElementById('outputModal').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    // モーダル内でキーをトグル
+    function toggleModalKey(keyCode) {
+      const index = tempOutputKeys.indexOf(keyCode);
+      if (index > -1) {
+        tempOutputKeys.splice(index, 1);
+      } else {
+        tempOutputKeys.push(keyCode);
+      }
+      updateModalUI();
+    }
+
+    // モーダル内で修飾キーをトグル
+    function toggleModalModifier(modCode) {
+      const index = tempOutputModifiers.indexOf(modCode);
+      if (index > -1) {
+        tempOutputModifiers.splice(index, 1);
+      } else {
+        tempOutputModifiers.push(modCode);
+      }
+      updateModalUI();
+    }
+
+    // モーダルUI更新
+    function updateModalUI() {
+      // すべてのアイテムの選択状態を更新
+      document.querySelectorAll('.modal-key-item').forEach(item => {
+        if (item.dataset.type === 'modifier') {
+          // 修飾キー
+          if (tempOutputModifiers.includes(item.dataset.code)) {
+            item.classList.add('selected');
+          } else {
+            item.classList.remove('selected');
+          }
+        } else {
+          // 通常キー
+          if (tempOutputKeys.includes(item.dataset.code)) {
+            item.classList.add('selected');
+          } else {
+            item.classList.remove('selected');
+          }
+        }
+      });
+
+      // プレビュー更新
+      const preview = document.getElementById('outputPreview');
+      if (tempOutputModifiers.length === 0 && tempOutputKeys.length === 0) {
+        preview.className = 'output-preview empty';
+        preview.textContent = '選択されていません';
+      } else {
+        preview.className = 'output-preview';
+        preview.innerHTML = '';
+        
+        // 修飾キーを表示
+        tempOutputModifiers.forEach(mod => {
+          const tag = document.createElement('span');
+          tag.className = 'selection-tag output';
+          const modKey = modifierKeys.find(m => m.code === mod);
+          tag.textContent = modKey ? modKey.label : mod;
+          preview.appendChild(tag);
+        });
+        
+        // プラス記号
+        if (tempOutputModifiers.length > 0 && tempOutputKeys.length > 0) {
+          const plus = document.createElement('span');
+          plus.textContent = '+';
+          plus.style.margin = '0 5px';
+          plus.style.fontWeight = 'bold';
+          preview.appendChild(plus);
+        }
+        
+        // 通常キーを表示
+        tempOutputKeys.forEach(key => {
+          const tag = document.createElement('span');
+          tag.className = 'selection-tag output';
+          tag.textContent = getKeyLabel(key);
+          preview.appendChild(tag);
+        });
+      }
+    }
+
+    // モーダル選択をクリア
+    function clearModalSelection() {
+      tempOutputKeys = [];
+      tempOutputModifiers = [];
+      updateModalUI();
+    }
+
+    // モーダル選択を確定してマッピングを追加
+    function confirmAndAddMapping() {
+      // 入力キーの確認
+      if (inputKeys.length === 0) {
+        alert('入力キーを選択してください');
+        return;
+      }
+      
+      // 出力キーの確認
+      if (tempOutputModifiers.length === 0 && tempOutputKeys.length === 0) {
+        alert('出力キーを選択してください');
+        return;
+      }
+      
+      // 一時選択を確定
+      outputKeys = [...tempOutputKeys];
+      outputModifiers = [...tempOutputModifiers];
+      
+      // ヘッダーの選択表示を更新
+      updateSelectedKeysDisplay();
+      
+      // マッピングを追加（成功/失敗を確認）
+      const success = addMapping();
+      
+      // 成功した場合のみモーダルを閉じる
+      if (success) {
+        closeOutputModal();
+      } else {
+        // 失敗した場合は選択をクリア
+        clearSelection();
+        closeOutputModal();
+      }
+    }
+
+    // 旧confirmModalSelection関数（互換性のため残す）
+    function confirmModalSelection() {
+      outputKeys = [...tempOutputKeys];
+      outputModifiers = [...tempOutputModifiers];
+      updateSelectedKeysDisplay();
+      closeOutputModal();
+    }
+
+
+    init();
+  
+  </script>
+</body>
+</html>
